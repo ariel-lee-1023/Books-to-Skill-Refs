@@ -1,0 +1,88 @@
+name: Validate skill
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check SKILL.md frontmatter
+        run: |
+          python - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          errors = []
+          p = Path("SKILL.md")
+          if not p.exists():
+              sys.exit("✗ SKILL.md is missing from the repository root.")
+
+          text = p.read_text(encoding="utf-8")
+          m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+          if not m:
+              sys.exit("✗ SKILL.md must open with a YAML frontmatter block delimited by ---.")
+
+          fm = m.group(1)
+
+          name = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
+          if not name:
+              errors.append("frontmatter is missing a `name:` field")
+          else:
+              slug = name.group(1).strip().strip("\"'")
+              if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", slug):
+                  errors.append(f"`name: {slug}` must be lowercase letters, digits and hyphens only")
+              if slug != p.parent.resolve().name and slug != "books-to-skill-refs":
+                  errors.append(f"`name: {slug}` does not match the expected skill slug")
+
+          desc = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.DOTALL)
+          if not desc:
+              errors.append("frontmatter is missing a `description:` field")
+          elif len(desc.group(1).strip()) < 40:
+              errors.append("`description:` is too short to trigger reliably")
+
+          if errors:
+              for e in errors:
+                  print(f"✗ {e}")
+              sys.exit(1)
+          print("✓ SKILL.md frontmatter looks good.")
+          PY
+
+      - name: Check required files and relative links
+        run: |
+          python - <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          missing = [f for f in ("README.md", "LICENSE", ".gitignore") if not Path(f).exists()]
+          if missing:
+              sys.exit("✗ Missing required file(s): " + ", ".join(missing))
+
+          broken = []
+          for md in Path(".").rglob("*.md"):
+              if "node_modules" in md.parts:
+                  continue
+              for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", md.read_text(encoding="utf-8")):
+                  if target.startswith(("http://", "https://", "#", "mailto:")):
+                      continue
+                  if any(c in target for c in "<>{}"):  # template placeholder, not a real path
+                      continue
+                  if not (md.parent / target.split("#")[0]).exists():
+                      broken.append(f"{md}: [{label}]({target})")
+
+          if broken:
+              print("✗ Broken relative links:")
+              for b in broken:
+                  print("   " + b)
+              sys.exit(1)
+          print("✓ Required files present, relative links resolve.")
+          PY
