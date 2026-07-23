@@ -132,4 +132,4 @@ Issues and pull requests are welcome. Since the whole project is one prompt file
 
 ## License
 
-[MIT](LICENSE)
+MIT © 2026 Ariel Lee. [See LICENSE](LICENSE).
