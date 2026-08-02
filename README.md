@@ -27,7 +27,7 @@ The master `SKILL.md` stays under ~2,500 tokens because it is *always loaded*; t
 
 ## How it differs from `book-to-skill`
 
-This reuses [`book-to-skill`](https://github.com/ariel-lee-1023/book-to-skill)'s extraction engine unchanged and re-points it at a different output shape.
+This reuses the extraction engine from [`book-to-skill`](https://github.com/virgiliojr94/book-to-skill) by @virgiliojr94 (MIT), unchanged, and re-points it at a different output shape.
 
 | | book-to-skill | books-to-skill-refs |
 |---|---|---|
@@ -42,7 +42,7 @@ What carries over unchanged is the load-bearing part: extract *structure* rather
 
 - A skill-aware agent (Claude Code, Copilot CLI, Amp, …)
 - **Python 3** on `PATH`
-- **[`book-to-skill`](https://github.com/ariel-lee-1023/book-to-skill) installed in an adjacent skill root** — this skill calls its `scripts/extract.py`, which imports the `book_to_skill` package. Alternatively, copy that repo's `scripts/` and `book_to_skill/` next to this skill.
+- **[`book-to-skill`](https://github.com/virgiliojr94/book-to-skill) by @virgiliojr94 installed in an adjacent skill root** — this skill calls its `scripts/extract.py`, which imports the `book_to_skill` package. Alternatively, copy that repo's `scripts/` and `book_to_skill/` next to this skill.
 - Optional: [Calibre](https://calibre-ebook.com/) for MOBI/AZW input
 
 The skill preflights the extractor and fails early with a fix rather than dying mid-run.
@@ -67,7 +67,7 @@ Project-local roots also work: `.github/skills/`, `.claude/skills/`, `.agents/sk
 Then install the extractor dependency:
 
 ```bash
-git clone --depth 1 https://github.com/ariel-lee-1023/book-to-skill ~/.claude/skills/book-to-skill
+git clone --depth 1 https://github.com/virgiliojr94/book-to-skill ~/.claude/skills/book-to-skill
 ```
 
 ## Usage

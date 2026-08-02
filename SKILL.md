@@ -11,7 +11,7 @@ Cross-agent notes (informational; ignored by host agents):
   - `allowed-tools` is intentionally omitted to stay agent-neutral. The skill needs
     shell (to run extract.py) and file read/write; each host prompts on first use.
   - Argument hint: <path-to-document-folder-or-glob>... [library-name-slug]
-  - Extraction engine is book-to-skill's, reused unchanged (see Step 2).
+  - Extraction engine is book-to-skill's by @virgiliojr94 (MIT), reused unchanged (see Step 2).
 -->
 
 # Books-to-Skill&Refs (multi-book, flat library)
@@ -20,7 +20,8 @@ Distill several books at once into one shared, cross-referenced library — **no
 
 ## What this is — and how it differs from book-to-skill
 
-This is book-to-skill's engine re-pointed at a different output shape. The reading
+This is the engine from [`book-to-skill`](https://github.com/virgiliojr94/book-to-skill) by
+@virgiliojr94 (MIT), re-pointed at a different output shape. The reading
 and extraction discipline is identical and load-bearing; only the shape of what we
 write to disk changes. So you don't have to reverse-engineer it from a diff:
 
@@ -108,7 +109,7 @@ if [ -z "$SCRIPT_PATH" ]; then
   Bootstrap it into an adjacent skill root (pick the one your host uses), e.g.:
 
     DEST="$HOME/.claude/skills/book-to-skill"      # or ~/.copilot/skills, ~/.agents/skills
-    git clone --depth 1 https://github.com/ariel-lee-1023/book-to-skill "$DEST"
+    git clone --depth 1 https://github.com/virgiliojr94/book-to-skill "$DEST"
 
   Or copy book-to-skill's scripts/ and book_to_skill/ next to this skill. Then re-run.
 MSG
