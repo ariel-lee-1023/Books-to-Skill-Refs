@@ -1,0 +1,30 @@
+# macOS / editor cruft
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
+
+# Python (the extraction engine this skill calls is Python)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Vendored copy of book-to-skill's extraction engine, if placed next to this skill
+/scripts/
+/book_to_skill/
+
+# Source documents and generated libraries — never commit book contents
+/input/
+/books/
+/output/
+*.pdf
+*.epub
+*.mobi
+*.azw
+*.azw3
+*.docx
+*.rtf
