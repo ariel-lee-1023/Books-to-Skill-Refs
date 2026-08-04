@@ -58,7 +58,8 @@ $SKILLS_HOME/<library-name>/
 ├── SKILL.md                       # master: router + library index + cross-book topic index
 ├── reference-<book1-slug>.md      # dense standalone distillation of book 1
 ├── reference-<book2-slug>.md      # dense standalone distillation of book 2
-└── reference-<bookN-slug>.md
+├── reference-<bookN-slug>.md
+└── topic-index.md                 # ONLY if the master overflows its budget (Step 8 valve)
 ```
 
 No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book subfolders. Every file is a sibling.
@@ -195,7 +196,7 @@ Read `metadata.json`. Present a per-book table so the user sees where the cost i
 
 💰 Estimated cost (Full build):
    Input  (reading + prompts): ~<sum(estimated_tokens)*1.3>K
-   Output (1 reference/book + 1 master): ~<Σ per-book budget + master ~2K>K
+   Output (1 reference/book + 1 master): ~<Σ per-book budget + master (400 + 50×N + index)>K
    Total: ~<N>K   (Sonnet ~$X · Haiku ~$X)
    ⏱ ~<N> min
 
@@ -203,25 +204,36 @@ Read `metadata.json`. Present a per-book table so the user sees where the cost i
 ➡ Proceed? (or "analyze only")
 ```
 
-Per-book output budget uses the Step 7 matrix. Prices (2025 ref): Sonnet in $3 / out $15 per MTok; Haiku in $0.80 / out $4. Wait for confirmation. "analyze only" → Mode 2.
+Per-book output budget uses the Step 7 matrix — take the **book range** midpoint scaled by that book's detected
+section count, not a flat per-book constant. Prices (2025 ref): Sonnet in $3 / out $15 per MTok; Haiku in $0.80 /
+out $4. Wait for confirmation. "analyze only" → Mode 2.
 
 ---
 
-## Step 2.6 — On-demand reading for large sources (>50k tokens) — CARRIED OVER, load-bearing
+## Step 2.6 — Sliced reading (unconditional) — CARRIED OVER, load-bearing
 
-Treat `full_text.txt` as a queryable corpus, not one big `Read`. Loading the whole file burns the budget you
-need for generation. This is the token-cost logic that justifies the whole approach — do not skip it.
+Treat `full_text.txt` as a queryable corpus, never one big `Read`. **No size threshold applies here.** The
+original's ">50k tokens" rule assumed one book per file; ours is N books concatenated, so a full read always
+pulls in the N−1 books you are not currently writing about. A full `Read` of `full_text.txt` is wrong at every
+size. This is the token-cost logic that justifies the whole approach — do not skip it.
 
 ```bash
-wc -w "$FULL_TEXT_PATH"                                    # size check first
-grep -n "^SOURCE: " "$FULL_TEXT_PATH"                      # per-book boundaries
+grep -n "^SOURCE: " "$FULL_TEXT_PATH"                      # per-book boundaries — RUN ONCE, in Step 2
 grep -n -E "^\s*(Chapter|CHAPTER)\s+[0-9]+" "$FULL_TEXT_PATH" | head -60   # chapter offsets
 sed -n '<start>,<end>p' "$FULL_TEXT_PATH"                  # pull only the slice you need
 grep -c -i "westrum\|dora" "$FULL_TEXT_PATH"               # verify a framework exists before claiming it
 ```
 
+**Compute the `SOURCE:` fence boundaries once, in Step 2, and reuse them** in Steps 3 and 7. Do not re-grep the
+whole file per section.
+
+**Input budget per book (the anti-waste gate):** cumulative reading from a book's slice should stay **≲ 4× that
+book's reference-file output budget** (Step 7). Going over means you are re-reading. The intended shape is one
+pass: probe (TOC / chapter offsets / framework keywords) → decide the full section list up front → read each
+section slice **exactly once** → write. Never `sed` a range you have already read.
+
 Use targeted `Read(offset,limit)` slices, not unbounded reads. Re-reading a 200-page book once per section costs
-millions of input tokens; grep+sed keeps cost proportional to output. Apply this in Steps 3 and 7.
+millions of input tokens; grep+sed keeps cost proportional to output.
 
 ---
 
@@ -308,16 +320,44 @@ mkdir -p "$SKILLS_HOME/<library-name>"     # flat — NO chapters/ subfolder
 absorbs what the original spread across `chapters/` + glossary + patterns + cheatsheet — compressed, because it's
 now one flat file, not a folder.
 
-**Per-reference-file budget (whole book; loaded on demand, so it only costs when that book is consulted):**
+### Per-reference-file budget
+
+**Why this differs from book-to-skill's per-chapter matrix.** Upstream's `chapters/ch07.md` is *individually*
+loadable, so a thick book costs the same per consultation as a thin one and its budget can scale linearly with
+chapter count. Our flat design's load granularity is **the whole book**: whatever this file weighs is what every
+consultation of that book pays. So the budget scales with content at the bottom and is **capped by
+loadability** at the top.
 
 | | `DEPTH=reference` | `DEPTH=study` |
 |---|---|---|
-| `BOOK_TYPE=text` | 2,000–3,500 tok | 3,000–5,000 tok |
-| `BOOK_TYPE=technical` | 3,000–4,500 tok | 4,500–7,000 tok |
+| `BOOK_TYPE=text` | ~200–350 tok/section · book 3,000–6,000 · **cap 9,000** | ~400–700 tok/section · book 6,000–12,000 · **cap 14,000** |
+| `BOOK_TYPE=technical` | ~350–500 tok/section · book 4,500–9,000 · **cap 12,000** | ~700–1,200 tok/section · book 9,000–18,000 · **cap 20,000** |
 
-Targets, not caps. **Density beats length — never pad to hit a number.** A thin book lands under; a dense one runs over.
+- **Per-section allowance sets the shape** — it is what keeps a 30-section book from being crushed into the same
+  budget as a 10-section one. (Calibration: upstream measures its *full* chapter template at 700–900 tok of dense
+  prose; the section block below is a subset of it, which lands ~150–250 at the terse end.)
+- **The book range is a target, not a floor** — a thin book legitimately lands under it. Density beats length;
+  never pad to hit a number.
+- **The cap is hard**, because it is the price of a single consultation. A book over cap gets there by
+  *selection*, never by truncation — see the cut order below.
 
-**Reading:** use Step 2.6 probes against this book's slice (`SOURCE:` fence → next fence). Do not load other books.
+**When a book projects over cap, cut in this order:**
+1. Drop to `reference` depth for this book — delete the Worked Example.
+2. Merge adjacent thin sections into one block. The book's structure is the spine, but not every chapter earns
+   its own block.
+3. In minor sections, keep Core idea + framework names only; drop their anti-patterns.
+4. **Never cut:** a framework's exact name and formulation (Quality Rule #2), or `## Decision Rules & Judgment`.
+5. Still over (a 600-page technical reference — rare)? **Stop and ask the user:** split into sibling
+   `reference-<slug>-part1.md` / `-part2.md`, or use book-to-skill's folder design for that one book. This is a
+   real edge of the flat design; say so rather than silently degrading the distillation.
+
+**Coverage check before moving on (acceptance is coverage, not length).** Step 3 produced a framework / principle
+/ technique list for this book. Every item on it must either appear in the reference file, or be **explicitly
+recorded as dropped, with a reason** ("minor variant, folded into X"). No silent omissions. Satisfy coverage
+first, then compress toward the range.
+
+**Reading:** use Step 2.6 probes against this book's slice (`SOURCE:` fence → next fence), within the 4× input
+budget. Do not load other books.
 
 **Study-depth worked example scales to the book, not the section:** reproduce **one** worked example for the whole
 reference file (the single most instructive artifact the author walks through) — not one per chapter. Reconstruct it
@@ -366,7 +406,27 @@ Write `$SKILLS_HOME/<library-name>/SKILL.md` **once, at the end**. It plays the 
 but it indexes N reference files instead of one chapter set. **It is a router, not a knowledge dump** — the knowledge
 lives in the reference files (loaded on demand). Keep it small; it is always loaded and grows with the library.
 
-**CRITICAL: keep the body under ~2,500 tokens and front-load the router table** — compaction truncates from the end.
+**CRITICAL: keep the body within the scaling budget below and front-load the router table** — compaction truncates
+from the end.
+
+**Master budget scales with book count** (it must: the router table is inherently O(N)):
+
+```
+budget ≈ 400 (frontmatter + How to use + Scope)
+       +  50 × N (one router row per book)
+       + topic index (~15/entry, ≤600)
+       —— hard stop at 3,500 ——
+```
+
+Reference points: N=10 → ~1,500; N=20 → ~1,900; N=40 → ~2,800. **Overflow valve:** past 3,500, move the whole
+Cross-book Topic Index into a sibling `topic-index.md` (loaded on demand) and leave a one-line pointer here. The
+**router table never spills** — it is the only thing that lets an agent find a file at all. Past ~30 books, also
+group the router table by theme (a subheading per theme, one row per book inside) so reading it becomes
+"pick a theme, then a book" instead of scanning N rows.
+
+**Router only, never a knowledge dump.** Upstream's SKILL.md carries a ~2,000-token "core frameworks" block; that
+works for one book and breaks for N, where any such selection is arbitrary. The knowledge lives in the reference
+files.
 
 ```markdown
 ---
@@ -395,8 +455,10 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
      RULE (bounds the size AND sharpens the purpose): list a term ONLY if it spans
      ≥2 books. This index exists for cross-book routing; a term in just one book is
      already reachable via that book's router row, so it stays in the reference file,
-     not here. HARD CEILING ~40 entries / ~600 tokens. If it still overflows, keep the
-     terms shared by the MOST books and end with "(more in individual reference files)". -->
+     not here. CEILING ~40 entries / ~600 tokens. If it still overflows, keep the
+     terms shared by the MOST books and end with "(more in individual reference files)";
+     once the whole master passes the 3,500 hard stop, move this section wholesale into a
+     sibling topic-index.md and leave a one-line pointer in its place. -->
 - **<Term/Framework>** → <slug>, <slug2>
 - **<Term>** → <slug1>, <slug3>
 
@@ -404,9 +466,10 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
 Covers these sources only. For a topic no book here addresses, say so rather than inventing it.
 ```
 
-**Master budget is a hard ceiling, not a wish.** Body ≤ ~2,500 tokens, always loaded. It scales with book count,
-so if you're near the limit, cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten
-the "one big idea" column to a phrase, (3) never cut the router table's file links — those are load-bearing.
+**The 3,500 hard stop is a ceiling, not a wish** — this body is always loaded, in every session. Near the limit,
+cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten the "one big idea" column to a
+phrase, (3) spill the Topic Index to `topic-index.md`, (4) group the router table by theme. **Never cut the router
+table's file links** — those are load-bearing.
 
 ---
 
@@ -449,7 +512,9 @@ Far simpler than the original's chapter-renumbering merge — a new book is just
 2. Step 5 → derive a unique `reference-<slug>.md` (append `-2` on collision).
 3. Step 7 → write the **one new** reference file. Do not touch existing reference files.
 4. Re-index the master `SKILL.md`: add one row to "Which book for which job", merge the new book's terms into the
-   Cross-book Topic Index (append the new slug to existing terms it also covers), bump the book count and date.
+   Cross-book Topic Index (append the new slug to existing terms it also covers — or into `topic-index.md` if the
+   library has already spilled it), bump the book count and date. Re-check the master against its Step 8 budget:
+   `N` just grew by one, so this is where the overflow valve fires.
 5. Step 9 cleanup; report which book was added and which topic-index entries changed.
 
 ---
@@ -460,7 +525,8 @@ Far simpler than the original's chapter-renumbering merge — a new book is just
 2. **Preserve the author's precision** — "The 5 Whys" ≠ "ask why a few times". Keep exact naming.
 3. **Density over length** — a 1,000-token distillation beats a 10,000-token excerpt. Never pad.
 4. **Front-load** — most important content first, in both each reference file and the master (compaction cuts the tail).
-5. **Reference files are on-demand** — they don't cost tokens until opened; keep the always-loaded master lean.
+5. **Reference files are on-demand, but load whole** — they cost nothing until opened, and then they cost *all* of
+   themselves. That is why Step 7's cap is hard while its range is only a target. Keep the always-loaded master lean.
 6. **Never copy raw text** — always synthesize.
 7. **The cross-book Topic Index is the payoff** — it's how the agent routes a question to the right book. Get it right.
 8. **Name slug rule** — `name:` must be lowercase letters/digits/hyphens only (no spaces, no `&`, not "claude"/"anthropic"). The pretty title lives in the `#` heading and description, not in `name:`.
