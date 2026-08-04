@@ -13,8 +13,9 @@ venv/
 .pytest_cache/
 *.egg-info/
 
-# Vendored copy of book-to-skill's extraction engine, if placed next to this skill
-/scripts/
+# Vendored copy of book-to-skill's extraction engine, if placed next to this skill.
+# Only that project's package is ignored — /scripts/ is deliberately NOT listed, so a
+# first-party extractor written here can be committed normally.
 /book_to_skill/
 
 # Source documents and generated libraries — never commit book contents

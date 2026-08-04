@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`tools/count_tokens.py`** — token estimation that segments by script density instead
+  of by whitespace. The extractor's `estimate_tokens` is `len(text.split()) / 0.75`, which
+  counts space-delimited words; Chinese, Japanese and Thai prose has none, so a measured
+  1,080-character Chinese passage estimated as **1** token against a realistic ~720. Step
+  2.5's cost gate would have shown `~0K` and collected approval for a run costing orders of
+  magnitude more. Stdlib only.
+- **`tools/validate_library.py`** — validates a *generated* library against the contracts
+  in `SKILL.md`: flat directory, every reference file reachable from the router, no dangling
+  router links, the topic index's ≥2-book rule, the master's scaling budget and 3,500 hard
+  stop, and each reference file against its Step 7 cap for its detected type and declared
+  depth. `ERROR` exits non-zero; `WARN` does not.
+- **`tests/`** — 38 stdlib `unittest` cases plus conforming and deliberately broken library
+  fixtures. Includes a regression test asserting the CJK undercount cannot return.
+- **Step 8.5 — Verify the library against the contract.** Runs the validator before
+  reporting success; a library that has not been verified must not be reported as done.
+- CI now runs the unit tests, requires the good fixture to pass and the bad fixture to
+  fail, and prints this skill's own always-loaded token cost.
+- README documents both tools and how to run the tests.
+
+### Fixed
+
+- **Step 2.6's chapter probe now matches CJK headings.** It was ASCII-only
+  (`Chapter|CHAPTER \d+`) while the extractor detects `第N章 / 第N节 / 第N讲` and reports
+  them in `chapters_detected` — so on a Chinese book the extractor parsed correctly, the
+  probe found zero offsets and Steps 3 and 7 had no section boundaries to work with.
+- **`.gitignore` no longer blanket-ignores `/scripts/`.** It was added to keep a vendored
+  copy of the upstream engine out of the repository, but it would also have silently
+  swallowed a first-party extractor written here. Only `/book_to_skill/` — a name that can
+  only be upstream's — stays ignored.
+- CI's relative-link sweep skips `tests/fixtures`, whose broken links are the fixtures.
+
 ### Changed
 
 - **Per-reference-file budget now scales with book size** (Step 7). The flat per-book

@@ -102,14 +102,46 @@ Before generating anything, the skill shows a per-book token and cost estimate a
 
 ## Output sizing
 
-Per reference file (targets, not caps — density beats length):
+Budgets scale with the book, because the section template does. A reference file loads *whole* on every
+consultation, so the range is a target while the cap is hard:
 
 | | `DEPTH=reference` | `DEPTH=study` |
 |---|---|---|
-| Text-heavy book | 2,000–3,500 tok | 3,000–5,000 tok |
-| Technical book | 3,000–4,500 tok | 4,500–7,000 tok |
+| Text-heavy book | ~200–350/section · 3,000–6,000 · cap 9,000 | ~400–700/section · 6,000–12,000 · cap 14,000 |
+| Technical book | ~350–500/section · 4,500–9,000 · cap 12,000 | ~700–1,200/section · 9,000–18,000 · cap 20,000 |
 
-Master `SKILL.md`: **hard ceiling ~2,500 tokens**, router table front-loaded (compaction truncates from the end).
+A book over cap gets there by selection, never truncation — `SKILL.md` Step 7 states the cut order.
+
+Master `SKILL.md` is always loaded, so its budget scales with the library: `400 + 50 × N + index (≤600)`, with a
+**hard stop at 3,500**. Past that the cross-book topic index spills to a sibling `topic-index.md`; the router
+table never spills. The router table is front-loaded because compaction truncates from the end.
+
+## Tools
+
+Two first-party tools, stdlib only — no third-party packages, nothing to install.
+
+```bash
+# What does this cost / is it inside budget?
+python tools/count_tokens.py path/to/reference-*.md --budget 14000
+
+# Does a generated library actually satisfy the contract?
+python tools/validate_library.py ~/.claude/skills/my-library/
+```
+
+**`tools/count_tokens.py`** estimates tokens by script density rather than by whitespace. This matters more than
+it sounds: the conventional word-split estimate (`len(text.split()) / 0.75`) undercounts space-free scripts by
+orders of magnitude — a 1,080-character Chinese passage estimates as **1** token against a realistic ~720 — which
+would silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai source.
+
+**`tools/validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
+generated library: the directory is flat, every reference file is reachable from the router, no router link
+dangles, the topic index honours the ≥2-book rule, the master is under its hard stop, and each reference file is
+inside its cap for its detected type and declared depth. `ERROR` exits non-zero; `WARN` does not. Step 8.5 runs it
+before reporting success.
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Quality rules
 
@@ -128,7 +160,10 @@ For a pure structural distillation with zero cheatsheet residue, delete the `## 
 
 ## Contributing
 
-Issues and pull requests are welcome. Since the whole project is one prompt file, please keep changes focused: state which step you are changing and why, and keep the master-`SKILL.md` token ceiling intact.
+Issues and pull requests are welcome. Most of the project is one prompt file, so please keep changes focused:
+state which step you are changing and why. If you change a budget or a shape rule in `SKILL.md`, change the
+matching constant in `tools/validate_library.py` and add a test — the contract and its enforcement are meant to
+stay in sync. Run `python -m unittest discover -s tests` before opening a PR.
 
 ## License
 

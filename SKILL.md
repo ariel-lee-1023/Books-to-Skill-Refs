@@ -186,7 +186,34 @@ next fence (or EOF) is its end. That is the entire mechanism behind "one referen
 
 ## Step 2.5 — Per-book cost estimate (before generating anything)
 
-Read `metadata.json`. Present a per-book table so the user sees where the cost is:
+**Do not use `metadata.json`'s `estimated_tokens` directly.** The extractor computes it as
+`len(text.split()) / 0.75` — space-delimited words. Chinese, Japanese and Thai prose has no spaces, so a whole
+paragraph counts as one "word": a 1,080-character Chinese passage estimates as **1** token against a realistic
+~720. Presenting that number would show the user `~0K` and collect their approval for a run costing orders of
+magnitude more. Recount with this skill's own counter, which segments by script density:
+
+```bash
+TOOLS=""
+for candidate in \
+  "$HOME/.copilot/skills/books-to-skill-refs/tools" \
+  "$HOME/.claude/skills/books-to-skill-refs/tools" \
+  "$HOME/.agents/skills/books-to-skill-refs/tools" \
+  ".github/skills/books-to-skill-refs/tools" \
+  ".claude/skills/books-to-skill-refs/tools" \
+  ".agents/skills/books-to-skill-refs/tools"
+do
+  [ -f "$candidate/count_tokens.py" ] && { TOOLS="$candidate"; break; }
+done
+
+"$PYTHON_BIN" "$TOOLS/count_tokens.py" "$FULL_TEXT_PATH"                    # corrected combined total
+sed -n "${start},${end}p" "$FULL_TEXT_PATH" | "$PYTHON_BIN" "$TOOLS/count_tokens.py"   # per book, by fence range
+```
+
+Keep `metadata.json` for everything else (`pages`, `format`, `chapters_detected`, `has_toc`) — only the token
+figure is unreliable. If `$TOOLS` is empty, say so and fall back to `chars / 4` for non-CJK and `chars / 1.5` for
+CJK rather than quoting the word-split number.
+
+Then present a per-book table so the user sees where the cost is:
 
 ```
 📚 Library: <total_sources> book(s)
@@ -219,7 +246,14 @@ size. This is the token-cost logic that justifies the whole approach — do not 
 
 ```bash
 grep -n "^SOURCE: " "$FULL_TEXT_PATH"                      # per-book boundaries — RUN ONCE, in Step 2
-grep -n -E "^\s*(Chapter|CHAPTER)\s+[0-9]+" "$FULL_TEXT_PATH" | head -60   # chapter offsets
+# Chapter offsets. The CJK alternative is not optional: extract.py detects 第N章/第N节/
+# 第N讲 (and reports them in chapters_detected), so an ASCII-only probe here finds ZERO
+# offsets on a Chinese book the extractor parsed correctly — Steps 3 and 7 then have no
+# section boundaries to work with. Deliberately permissive: it also matches prose like
+# "第一章的内容…", which is cheap to eyeball in a 60-line list, whereas a missed chapter
+# is not. Sanity-check the offsets before slicing.
+grep -n -E "^\s*(Chapter|CHAPTER)\s+[0-9]+|^\s*第\s*[0-9０-９〇零一二两三四五六七八九十百千]+\s*[章回卷节篇讲]" \
+  "$FULL_TEXT_PATH" | head -60
 sed -n '<start>,<end>p' "$FULL_TEXT_PATH"                  # pull only the slice you need
 grep -c -i "westrum\|dora" "$FULL_TEXT_PATH"               # verify a framework exists before claiming it
 ```
@@ -470,6 +504,26 @@ Covers these sources only. For a topic no book here addresses, say so rather tha
 cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten the "one big idea" column to a
 phrase, (3) spill the Topic Index to `topic-index.md`, (4) group the router table by theme. **Never cut the router
 table's file links** — those are load-bearing.
+
+---
+
+## Step 8.5 — Verify the library against the contract
+
+Every budget and shape rule above is checkable. Run the validator before reporting success —
+**do not report a library you have not verified.**
+
+```bash
+"$PYTHON_BIN" "$TOOLS/validate_library.py" "$SKILLS_HOME/<library-name>"
+```
+
+It checks what Steps 5–8 promise: the directory is flat, every `reference-*.md` is reachable from the router,
+no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `400 + 50×N + index` and
+under the 3,500 hard stop, and each reference file is inside its Step 7 cap for its detected type and declared
+depth. Errors exit non-zero; warnings do not.
+
+**Fix and re-run rather than reporting with errors outstanding.** A cap violation is fixed with Step 7's cut
+order; a master overflow with Step 8's overflow valve. If the validator is unavailable, say so explicitly in the
+Step 9 report instead of implying the library was verified.
 
 ---
 

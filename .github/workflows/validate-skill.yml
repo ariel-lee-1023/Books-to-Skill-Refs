@@ -71,6 +71,10 @@ jobs:
           for md in Path(".").rglob("*.md"):
               if "node_modules" in md.parts:
                   continue
+              # Test fixtures contain deliberately broken libraries; they are
+              # checked by tools/validate_library.py, not by this link sweep.
+              if "fixtures" in md.parts:
+                  continue
               for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", md.read_text(encoding="utf-8")):
                   if target.startswith(("http://", "https://", "#", "mailto:")):
                       continue
@@ -86,3 +90,21 @@ jobs:
               sys.exit(1)
           print("✓ Required files present, relative links resolve.")
           PY
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate the reference library fixtures
+        run: |
+          echo "--- a conforming library must pass"
+          python tools/validate_library.py tests/fixtures/good-library
+
+          echo "--- a broken library must fail"
+          if python tools/validate_library.py tests/fixtures/bad-library; then
+            echo "✗ validate_library.py accepted a library that violates the contract"
+            exit 1
+          fi
+          echo "✓ validate_library.py rejects contract violations"
+
+      - name: Report this skill's own always-loaded cost
+        run: python tools/count_tokens.py SKILL.md --body-only
