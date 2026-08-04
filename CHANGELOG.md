@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — first-party extraction runtime (Tier 1)
+
+The project no longer depends on another skill to run. `scripts/extract.py` and the
+`bookrefs` package replace the external engine entirely.
+
+- **`bookrefs/parsers/`** — text/markdown, HTML, DOCX, EPUB and RTF are parsed with the
+  **Python standard library alone** (`zipfile`, `xml.etree`, `html.parser`); PDF uses
+  whichever of pymupdf / pdfplumber / pypdf is installed; MOBI/AZW shell out to calibre.
+  Five of eight format families therefore need nothing installed, which is also what makes
+  the suite runnable in CI without network access.
+- **`bookrefs/structure.py`** — chapter and ToC detection across five heading dialects:
+  English and European chapter words, standalone Roman numerals, CJK `第N章/回/卷/节/篇/讲`
+  with Chinese numerals and full-width digits, CJK markdown headings, and Thai. Prose
+  cross-references ("Chapter 6 explores…") are rejected by a heading-plausibility gate.
+- **`bookrefs/tokens.py`** — the canonical token estimator; `tools/count_tokens.py` is now
+  a CLI over it, so the extractor's metadata, the cost gate, the caps and the validator
+  cannot drift apart.
+- **`bookrefs/sanitize.py`** — normalisation plus an untrusted-input boundary: invisible and
+  bidi-override characters are stripped, and a `SOURCE:` fence forged *inside* a document is
+  neutralised so one source cannot impersonate another. The marker is broken rather than
+  deleted, keeping the tampering visible.
+- **`bookrefs/dependencies.py`** — `--check` reports each format family with a remedy, and
+  the preflight only complains about formats the current batch actually contains.
+- **Richer `metadata.json`** — now carries `mode`, `token_method`, `path`, per-source
+  `start_line` / `end_line` (so callers stop re-deriving fence boundaries), and a
+  `failures[]` list. One corrupt or DRM-protected source no longer sinks the run.
+- Parsers preserve structure rather than flattening it: DOCX `Heading N` styles and HTML
+  `<h1..h6>` become markdown headings, tables become pipe rows, `<pre>` becomes a fenced
+  block — the exact signals `structure.py` and the technical/text tripwire read.
+- Legacy Chinese encodings (gb18030, Big5-HKSCS) and RTF `\uN?` escapes are decoded, so a
+  Chinese document does not silently extract as mojibake or as nothing.
+
+### Added — verification and engineering (Tier 2)
+
+- **`tools/scan_generated_skill.py`** — advisory scan of a generated library for
+  instructions aimed at the reading agent: instruction and identity overrides, system-prompt
+  references, concealment, credential solicitation, shell/network egress, claimed authority.
+  This closes a laundering path — text that is untrusted data inside a PDF becomes trusted
+  instruction text once distilled into a file an agent loads. New Step 8.5 runs it.
+- **`tools/validate_skill.py`** — audits a `SKILL.md` under a `claude`, `copilot` or `amp`
+  lens. The project claimed cross-agent compatibility and never checked it.
+- **`SECURITY.md`** — the threat model, the three places the boundary is enforced, and an
+  explicit list of what the project does *not* do (no sandboxing, no network, no DRM
+  circumvention, no OCR).
+- **`docs/ARCHITECTURE.md`**, **`CONTRIBUTING.md`**, **`pyproject.toml`** (no required
+  dependencies; `pdf` / `pdf-layout` / `all` extras; `bookrefs-extract` entry point).
+- **CI** — a 3-version Python matrix, both validators, both scanner fixtures, and an
+  end-to-end extraction smoke test asserting that CJK chapter detection, ToC detection and
+  token counting have not regressed.
+- Test suite grown to **131 cases**. DOCX and EPUB fixtures are built at test time
+  (`tests/builders.py`) rather than committed as binaries, so they stay reviewable in a diff
+  and a test can vary them — a shuffled EPUB spine, a `Heading 2` style.
+
+### Changed — Tier 1/2 follow-through
+
+- **`SKILL.md` Steps 1 and 2 now invoke the first-party runtime.** The bootstrap block that
+  told users to `git clone` another repository is gone; there is nothing to install.
+- **Step 2.5 no longer distrusts `estimated_tokens`.** The runtime's own estimate is
+  script-density based, and `metadata.json` records `token_method` so the check is
+  falsifiable rather than assumed.
+- **Step 2 documents the fence-forgery defence** and the `failures[]` behaviour.
+- **NOTICE.md rewritten.** The runtime dependency is gone and no code from the earlier
+  upstream is present or called. The one debt removing the dependency does *not* settle is
+  now stated plainly rather than left implicit: the numbered Step 0–9 skeleton, the three
+  modes, the cost gate, the `BOOK_TYPE`/`DEPTH` questions and the Quality Rules' ordering
+  and phrasing are derived from that project's `SKILL.md` prose, and stand until rewritten.
+- README requirements, install steps and tool documentation updated to match.
+
 ### Added
 
 - **`tools/count_tokens.py`** — token estimation that segments by script density instead

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "books-to-skill-refs"
+version = "1.1.0"
+description = "Extraction runtime and verification tools for the books-to-skill-refs agent skill"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Ariel Lee" }]
+keywords = ["agent-skills", "document-extraction", "epub", "docx", "pdf", "distillation"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Text Processing :: Markup",
+]
+
+# No required runtime dependencies. Text, HTML, DOCX, EPUB and RTF are handled
+# with the standard library; the extras below only widen format coverage.
+dependencies = []
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4"]
+pdf-layout = ["pymupdf>=1.24"]
+all = ["pypdf>=4", "pymupdf>=1.24"]
+
+[project.scripts]
+bookrefs-extract = "bookrefs.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ariel-lee-1023/books-to-skill-refs"
+Issues = "https://github.com/ariel-lee-1023/books-to-skill-refs/issues"
+
+[tool.setuptools]
+packages = ["bookrefs", "bookrefs.parsers"]
+
+[tool.setuptools.package-data]
+bookrefs = ["py.typed"]

@@ -23,29 +23,40 @@ $SKILLS_HOME/<library-name>/
 
 Every file is a sibling. No `chapters/`, no per-book subfolders, no separate glossary/patterns/cheatsheet files.
 
-The master `SKILL.md` stays under ~2,500 tokens because it is *always loaded*; the reference files cost nothing until a question actually needs one.
+The master `SKILL.md` is kept small because it is *always loaded*; the reference files cost nothing until a question actually needs one.
 
-## How it differs from `book-to-skill`
+## How it differs from a per-book folder skill
 
-This reuses the extraction engine from [`book-to-skill`](https://github.com/virgiliojr94/book-to-skill) by @virgiliojr94 (MIT), unchanged, and re-points it at a different output shape.
-
-| | book-to-skill | books-to-skill-refs |
+| | per-book folder skill | books-to-skill-refs |
 |---|---|---|
 | Books per run | one | **N** |
 | Output per book | nested folder (`SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md`) | **one flat `reference-<slug>.md`** |
 | Shared file | that book's own `SKILL.md` | **one master `SKILL.md`** routing across all books |
 | Layout | per-book folder nesting | **flat — all files siblings** |
 
-What carries over unchanged is the load-bearing part: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
+The load-bearing disciplines: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
 
 ## Requirements
 
 - A skill-aware agent (Claude Code, Copilot CLI, Amp, …)
-- **Python 3** on `PATH`
-- **[`book-to-skill`](https://github.com/virgiliojr94/book-to-skill) by @virgiliojr94 installed in an adjacent skill root** — this skill calls its `scripts/extract.py`, which imports the `book_to_skill` package. Alternatively, copy that repo's `scripts/` and `book_to_skill/` next to this skill.
-- Optional: [Calibre](https://calibre-ebook.com/) for MOBI/AZW input
+- **Python 3.10+** on `PATH`
 
-The skill preflights the extractor and fails early with a fix rather than dying mid-run.
+That is the whole list. **No third-party packages are required and no companion skill needs installing** — the extraction runtime ships with this repository, and text, HTML, DOCX, EPUB and RTF are handled with the Python standard library alone.
+
+Two format families need something extra, and only if you use them:
+
+| Format | Needs | Install |
+|---|---|---|
+| `.pdf` | a PDF backend | `pip install pypdf` (or `pymupdf` / `pdfplumber` for layout-aware extraction) |
+| `.mobi` `.azw` `.azw3` | calibre's `ebook-convert` | `brew install --cask calibre`, or [calibre-ebook.com](https://calibre-ebook.com/download) |
+
+Check what your machine can handle:
+
+```bash
+python scripts/extract.py --check
+```
+
+The skill runs this as a preflight and fails early with a remedy rather than dying mid-run — and it only complains about formats your batch actually contains.
 
 ## Install
 
@@ -64,11 +75,7 @@ git clone https://github.com/ariel-lee-1023/books-to-skill-refs ~/.agents/skills
 
 Project-local roots also work: `.github/skills/`, `.claude/skills/`, `.agents/skills/`.
 
-Then install the extractor dependency:
-
-```bash
-git clone --depth 1 https://github.com/virgiliojr94/book-to-skill ~/.claude/skills/book-to-skill
-```
+Nothing else to install.
 
 ## Usage
 
@@ -118,30 +125,34 @@ table never spills. The router table is front-loaded because compaction truncate
 
 ## Tools
 
-Two first-party tools, stdlib only — no third-party packages, nothing to install.
+Four first-party tools, stdlib only — nothing to install.
 
 ```bash
-# What does this cost / is it inside budget?
-python tools/count_tokens.py path/to/reference-*.md --budget 14000
-
-# Does a generated library actually satisfy the contract?
-python tools/validate_library.py ~/.claude/skills/my-library/
+python tools/count_tokens.py reference-*.md --budget 14000   # inside budget?
+python tools/validate_library.py ~/.claude/skills/my-library/ # contract satisfied?
+python tools/scan_generated_skill.py my-library --strict      # injected instructions?
+python tools/validate_skill.py SKILL.md --lens all            # valid on every host?
+python -m unittest discover -s tests -v                       # 131 tests, no network
 ```
 
-**`tools/count_tokens.py`** estimates tokens by script density rather than by whitespace. This matters more than
-it sounds: the conventional word-split estimate (`len(text.split()) / 0.75`) undercounts space-free scripts by
-orders of magnitude — a 1,080-character Chinese passage estimates as **1** token against a realistic ~720 — which
-would silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai source.
+**`count_tokens.py`** estimates tokens by script density rather than by whitespace. This matters more than it
+sounds: the conventional word-split estimate (`len(text.split()) / 0.75`) undercounts space-free scripts by orders
+of magnitude — a 1,080-character Chinese passage estimates as **1** token against a realistic ~720 — which would
+silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai source.
 
-**`tools/validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
+**`validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
 generated library: the directory is flat, every reference file is reachable from the router, no router link
 dangles, the topic index honours the ≥2-book rule, the master is under its hard stop, and each reference file is
-inside its cap for its detected type and declared depth. `ERROR` exits non-zero; `WARN` does not. Step 8.5 runs it
-before reporting success.
+inside its cap for its detected type and declared depth. Step 8.5 runs it before reporting success.
 
-```bash
-python -m unittest discover -s tests -v
-```
+**`scan_generated_skill.py`** scans a generated library for instructions aimed at the reading agent. This skill
+reads documents it did not author and writes files a host agent later loads *as instructions* — a laundering path
+that nothing else in the pipeline closes. See [SECURITY.md](SECURITY.md).
+
+**`validate_skill.py`** audits a `SKILL.md` under a `--lens` of `claude`, `copilot` or `amp`, so this project's
+cross-agent compatibility claim is checked rather than asserted.
+
+Architecture and design rationale: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quality rules
 
@@ -160,10 +171,9 @@ For a pure structural distillation with zero cheatsheet residue, delete the `## 
 
 ## Contributing
 
-Issues and pull requests are welcome. Most of the project is one prompt file, so please keep changes focused:
-state which step you are changing and why. If you change a budget or a shape rule in `SKILL.md`, change the
-matching constant in `tools/validate_library.py` and add a test — the contract and its enforcement are meant to
-stay in sync. Run `python -m unittest discover -s tests` before opening a PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: the prompt states contracts and the tools enforce them
+— if you change a budget in `SKILL.md`, change the matching constant in `tools/validate_library.py` and add a
+test. Run the suite before opening a PR.
 
 ## License
 

@@ -7,65 +7,88 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Tests (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No install step: the runtime has no required third-party dependencies.
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
   validate:
+    name: Contracts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Check SKILL.md frontmatter
+      - name: Audit SKILL.md against every host lens
+        run: python tools/validate_skill.py SKILL.md --lens all
+
+      - name: Library contract — conforming fixture must pass
+        run: python tools/validate_library.py tests/fixtures/good-library
+
+      - name: Library contract — broken fixture must fail
         run: |
+          if python tools/validate_library.py tests/fixtures/bad-library; then
+            echo "::error::validate_library.py accepted a library that violates the contract"
+            exit 1
+          fi
+          echo "validate_library.py correctly rejected the broken fixture"
+
+      - name: Injection scan — conforming fixture must be clean
+        run: python tools/scan_generated_skill.py tests/fixtures/good-library --strict
+
+      - name: Injection scan — hostile fixture must be caught
+        run: |
+          if python tools/scan_generated_skill.py tests/fixtures/injected-library --strict; then
+            echo "::error::scan_generated_skill.py missed planted injections"
+            exit 1
+          fi
+          echo "scan_generated_skill.py correctly flagged the hostile fixture"
+
+      - name: Extraction smoke test
+        run: |
+          set -e
+          mkdir -p /tmp/src
+          printf '# The Method\n\nChapter 1: Beginnings\n\nBody text.\n' > /tmp/src/en.md
+          printf '目录\n\n第一章 绪论\n\n法律推理是从规范与事实推导法律后果的过程。\n' > /tmp/src/cn.md
+          python scripts/extract.py --check
+          python scripts/extract.py /tmp/src --workdir /tmp/wd
           python - <<'PY'
-          import re, sys
-          from pathlib import Path
-
-          errors = []
-          p = Path("SKILL.md")
-          if not p.exists():
-              sys.exit("✗ SKILL.md is missing from the repository root.")
-
-          text = p.read_text(encoding="utf-8")
-          m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
-          if not m:
-              sys.exit("✗ SKILL.md must open with a YAML frontmatter block delimited by ---.")
-
-          fm = m.group(1)
-
-          name = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
-          if not name:
-              errors.append("frontmatter is missing a `name:` field")
-          else:
-              slug = name.group(1).strip().strip("\"'")
-              if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", slug):
-                  errors.append(f"`name: {slug}` must be lowercase letters, digits and hyphens only")
-              if slug != p.parent.resolve().name and slug != "books-to-skill-refs":
-                  errors.append(f"`name: {slug}` does not match the expected skill slug")
-
-          desc = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.DOTALL)
-          if not desc:
-              errors.append("frontmatter is missing a `description:` field")
-          elif len(desc.group(1).strip()) < 40:
-              errors.append("`description:` is too short to trigger reliably")
-
-          if errors:
-              for e in errors:
-                  print(f"✗ {e}")
-              sys.exit(1)
-          print("✓ SKILL.md frontmatter looks good.")
+          import json, sys
+          meta = json.load(open("/tmp/wd/metadata.json"))
+          assert meta["total_sources"] == 2, meta
+          cn = next(s for s in meta["sources"] if s["filename"] == "cn.md")
+          assert cn["chapters_detected"] >= 1, "CJK chapter detection regressed"
+          assert cn["has_toc"], "CJK table-of-contents detection regressed"
+          # A word-split estimator would report a single-digit number here.
+          assert cn["estimated_tokens"] > cn["chars"] / 3, "CJK token undercount returned"
+          print("extraction smoke test ok:", meta["token_method"])
           PY
 
-      - name: Check required files and relative links
+      - name: Required files and relative links
         run: |
           python - <<'PY'
           import re, sys
           from pathlib import Path
 
-          missing = [f for f in ("README.md", "LICENSE", ".gitignore") if not Path(f).exists()]
+          required = ("README.md", "LICENSE", ".gitignore", "SKILL.md",
+                      "SECURITY.md", "CONTRIBUTING.md", "pyproject.toml")
+          missing = [f for f in required if not Path(f).exists()]
           if missing:
-              sys.exit("✗ Missing required file(s): " + ", ".join(missing))
+              sys.exit("Missing required file(s): " + ", ".join(missing))
 
           broken = []
           for md in Path(".").rglob("*.md"):
@@ -75,36 +98,22 @@ jobs:
               # checked by tools/validate_library.py, not by this link sweep.
               if "fixtures" in md.parts:
                   continue
-              for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", md.read_text(encoding="utf-8")):
+              for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)",
+                                              md.read_text(encoding="utf-8")):
                   if target.startswith(("http://", "https://", "#", "mailto:")):
                       continue
-                  if any(c in target for c in "<>{}"):  # template placeholder, not a real path
+                  if any(c in target for c in "<>{}"):  # template placeholder
                       continue
                   if not (md.parent / target.split("#")[0]).exists():
                       broken.append(f"{md}: [{label}]({target})")
 
           if broken:
-              print("✗ Broken relative links:")
+              print("Broken relative links:")
               for b in broken:
                   print("   " + b)
               sys.exit(1)
-          print("✓ Required files present, relative links resolve.")
+          print("Required files present, relative links resolve.")
           PY
-
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
-
-      - name: Validate the reference library fixtures
-        run: |
-          echo "--- a conforming library must pass"
-          python tools/validate_library.py tests/fixtures/good-library
-
-          echo "--- a broken library must fail"
-          if python tools/validate_library.py tests/fixtures/bad-library; then
-            echo "✗ validate_library.py accepted a library that violates the contract"
-            exit 1
-          fi
-          echo "✓ validate_library.py rejects contract violations"
 
       - name: Report this skill's own always-loaded cost
         run: python tools/count_tokens.py SKILL.md --body-only
