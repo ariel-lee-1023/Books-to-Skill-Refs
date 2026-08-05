@@ -101,7 +101,7 @@ documents ──► parsers ──► sanitize ──► structure detection ─
                                               │                  │
                                               └────── agent ─────┘
                                                         │
-                                          reference-*.md + master SKILL.md
+                                  SKILL.md + references/reference-*.md
                                                         │
                                      validate_library.py + scan_generated_skill.py
 ```

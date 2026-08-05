@@ -12,8 +12,8 @@ description: "too short"
 ## Which book for which job
 | Book (→ file) | Reach for it when you need… | Its one big idea |
 |---|---|---|
-| Linked Book → [reference-linked-book.md](reference-linked-book.md) | anything | one idea |
-| Ghost Book → [reference-ghost.md](reference-ghost.md) | nothing, it does not exist | missing |
+| Linked Book → [references/reference-linked-book.md](references/reference-linked-book.md) | anything | one idea |
+| Ghost Book → [references/reference-ghost.md](references/reference-ghost.md) | nothing, it does not exist | missing |
 
 ## Cross-book Topic Index
 - **Solo Term** → linked-book

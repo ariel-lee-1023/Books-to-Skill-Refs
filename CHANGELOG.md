@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the output layout is now the Agent Skills convention
+
+Generated libraries were flat: `SKILL.md` and every `reference-*.md` as siblings in one
+directory. They now follow the layout hosts actually expect — **`SKILL.md` at the root and
+every reference file under `references/`**.
+
+The flat shape was solving the wrong problem. What this design rejects is nesting *within* a
+book's material — a folder per book, a `chapters/` split, separate glossary/patterns/cheatsheet
+files — and none of that requires putting reference files beside `SKILL.md`. It only cost
+compatibility: `references/` is where Claude Code, Copilot CLI and Amp look for supporting
+files, and a library that invents its own shape is harder to install, harder to read, and fails
+anyone's expectations about what a skill directory looks like.
+
+- **`SKILL.md`** — output contract, Step 5 slugs, Step 6 `mkdir`, Step 7 write paths, the Step 8
+  router template and its overflow valve (`references/topic-index.md`), Step 9's report, and the
+  fold-in workflow all target `references/`.
+- **`tools/validate_library.py`** — the layout check inverts: `references/` is now the one
+  permitted subdirectory, and a `reference-*.md` left at the library root is an **error** with
+  the `git mv` that fixes it. Router links are matched on the path relative to the library, so
+  a link missing the `references/` prefix is reported with a "did you mean" hint rather than as
+  two unrelated failures. The topic-index spill valve moves to `references/topic-index.md`.
+- **Fixtures and tests** — `good-library` and `bad-library` restructured; `bad-library` gains a
+  stray root-level reference file so the migration error stays covered.
+
+**Migrating an existing library**: `mkdir -p references && git mv reference-*.md references/`,
+then prefix every router link and topic-index target with `references/`. `validate_library.py`
+names both steps if you miss one.
+
 ### Added — first-party extraction runtime (Tier 1)
 
 The project no longer depends on another skill to run. `scripts/extract.py` and the

@@ -1,6 +1,6 @@
 ---
 name: test-persuasion-library
-description: "Knowledge library across 2 sources: Influence, How to Win Friends. Use to apply or cross-reference their frameworks on compliance, reciprocity, and framing. Each book has its own reference-<slug>.md, loaded on demand."
+description: "Knowledge library across 2 sources: Influence, How to Win Friends. Use to apply or cross-reference their frameworks on compliance, reciprocity, and framing. Each book has its own references/reference-<slug>.md, loaded on demand."
 ---
 
 <!-- argument-hint: [topic, framework name, or book] -->
@@ -16,8 +16,8 @@ description: "Knowledge library across 2 sources: Influence, How to Win Friends.
 ## Which book for which job
 | Book (→ file) | Reach for it when you need… | Its one big idea |
 |---|---|---|
-| Influence → [reference-cialdini-influence.md](reference-cialdini-influence.md) | to name the lever someone is pulling on you | Compliance runs on six automatic triggers |
-| How to Win Friends → [reference-carnegie-persuasion.md](reference-carnegie-persuasion.md) | to change someone's mind without resentment | Criticism never survives contact with ego |
+| Influence → [references/reference-cialdini-influence.md](references/reference-cialdini-influence.md) | to name the lever someone is pulling on you | Compliance runs on six automatic triggers |
+| How to Win Friends → [references/reference-carnegie-persuasion.md](references/reference-carnegie-persuasion.md) | to change someone's mind without resentment | Criticism never survives contact with ego |
 
 ## Cross-book Topic Index
 - **Reciprocity** → cialdini-influence, carnegie-persuasion

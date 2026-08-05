@@ -1,6 +1,6 @@
 ---
 name: books-to-skill-refs
-description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a flat knowledge library: one master SKILL.md that indexes and routes across all sources, plus one standalone reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a shared, cross-referenced knowledge base rather than a per-book folder skill."
+description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a single Agent Skill: one master SKILL.md that indexes and routes across all sources, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a shared, cross-referenced knowledge base rather than a per-book folder skill."
 ---
 
 <!--
@@ -15,7 +15,7 @@ Cross-agent notes (informational; ignored by host agents):
     shipped in this repository. No external skill is required (see Step 2).
 -->
 
-# Books-to-Skill&Refs (multi-book, flat library)
+# Books-to-Skill&Refs (multi-book library, one skill)
 
 Distill several books at once into one shared, cross-referenced library — **not** a book report, and **not** one folder per book.
 
@@ -31,9 +31,9 @@ The output shape is the point, so state it plainly:
 | | a per-book folder skill | books-to-skill-refs (this) |
 |---|---|---|
 | Books per run | one | **N** |
-| Output per book | a nested folder: `SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md` | **one flat file:** `reference-<book-slug>.md` |
+| Output per book | a nested folder: `SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md` | **one file:** `references/reference-<book-slug>.md` |
 | Shared file | that book's `SKILL.md` indexes its own chapters | **one master `SKILL.md`** indexes/routes across all books |
-| Directory | per-book folder nesting | **all files siblings in one flat dir** |
+| Directory | one folder per book, nested inside | **the Agent Skills convention:** `SKILL.md` at the root, every reference file a sibling inside `references/` |
 | Chapters split into `chapters/*.md` | yes | **no** — folded into the one reference file |
 | `glossary` / `patterns` / `cheatsheet` as separate files | yes | **no** — see "What survives the collapse" |
 
@@ -54,18 +54,21 @@ A folder design's `glossary.md` / `patterns.md` / `cheatsheet.md` are *cross-cut
 
 ---
 
-## Output contract (the flat shape, explicit)
+## Output contract (the shape, explicit)
 
 ```
 $SKILLS_HOME/<library-name>/
-├── SKILL.md                       # master: router + library index + cross-book topic index
-├── reference-<book1-slug>.md      # dense standalone distillation of book 1
-├── reference-<book2-slug>.md      # dense standalone distillation of book 2
-├── reference-<bookN-slug>.md
-└── topic-index.md                 # ONLY if the master overflows its budget (Step 8 valve)
+├── SKILL.md                           # master: router + library index + cross-book topic index
+└── references/
+    ├── reference-<book1-slug>.md      # dense standalone distillation of book 1
+    ├── reference-<book2-slug>.md      # dense standalone distillation of book 2
+    ├── reference-<bookN-slug>.md
+    └── topic-index.md                 # ONLY if the master overflows its budget (Step 8 valve)
 ```
 
-No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book subfolders. Every file is a sibling.
+This is the **Agent Skills convention**: `SKILL.md` at the root — the only file a host loads automatically — and every supporting file under `references/`, loaded on demand. Hosts, docs and tooling all expect that shape, so a library that invents its own is harder to install and harder to read.
+
+**One reference file per book, and they are all siblings.** No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book subfolders inside `references/`. The nesting this design rejects is nesting *within* a book's material — not the one conventional directory that hosts expect supporting files to live in.
 
 ---
 
@@ -73,7 +76,7 @@ No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book su
 
 1. **Full build (default)** — user gives several source paths/dirs/globs. Run Steps 0–9.
 2. **Analyze only** — user says "analyze"/"just extract"/"review first". Run Steps 0–3 per book, emit an extraction report, stop. Write nothing.
-3. **Add a book (fold-in)** — user points at a new source and an existing library dir (or a slug that already exists in `SKILLS_HOME`). Extract the new source, write **one new `reference-<slug>.md`**, and re-index the master `SKILL.md`. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
+3. **Add a book (fold-in)** — user points at a new source and an existing library dir (or a slug that already exists in `SKILLS_HOME`). Extract the new source, write **one new `references/reference-<slug>.md`**, and re-index the master `SKILL.md`. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
 
 ---
 
@@ -91,7 +94,7 @@ If no arguments are provided, stop and respond:
 > "books-to-skill-refs requires one or more supported document paths, folders, or globs. Usage: `books-to-skill-refs <path>... [library-name-slug]`"
 
 - Parse args into `INPUT_PATHS` and an optional trailing `LIBRARY_NAME` slug (lowercase-hyphen token that is not an existing file/glob).
-- If any input path is an existing library dir (a flat dir containing `SKILL.md` and `reference-*.md`), or `LIBRARY_NAME` matches an existing library slug, flag this as **Add a book (Mode 3)**.
+- If any input path is an existing library dir (one containing `SKILL.md` and `references/reference-*.md`), or `LIBRARY_NAME` matches an existing library slug, flag this as **Add a book (Mode 3)**.
 
 ---
 
@@ -322,7 +325,7 @@ Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Any
   exists, use it; if none, ask; if the user asked for project-local, use the project row. If `<library-name>/`
   already exists, offer Add-a-book (Mode 3), Overwrite, or Rename.
 - **Per-book slug** (for each source): `<author-lastname>-<core-concept>` if the book has a strong
-  methodological identity, else a title slug. File name is `reference-<book-slug>.md`.
+  methodological identity, else a title slug. File path is `references/reference-<book-slug>.md`.
   **On collision, disambiguate by meaning, not by a number.** Two books on the same concept →
   prefix each with its author (`reference-cialdini-influence.md` vs `reference-carnegie-influence.md`),
   not `influence` and `influence-2`. Append `-2` only if author+concept *still* collides (same author, same
@@ -331,24 +334,26 @@ Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Any
 
 ---
 
-## Step 6 — Create the flat directory
+## Step 6 — Create the directory
 
 ```bash
-mkdir -p "$SKILLS_HOME/<library-name>"     # flat — NO chapters/ subfolder
+mkdir -p "$SKILLS_HOME/<library-name>/references"   # SKILL.md at the root, references/ beside it
 ```
+
+`references/` is the only subdirectory. No `chapters/`, no per-book folders inside it.
 
 ---
 
 ## Step 7 — Generate one reference file per book (the core loop)
 
-**For each source**, write a single dense `$SKILLS_HOME/<library-name>/reference-<book-slug>.md`. This one file
-absorbs what a folder design spreads across `chapters/` + glossary + patterns + cheatsheet — compressed, because it's
-now one flat file, not a folder.
+**For each source**, write a single dense `$SKILLS_HOME/<library-name>/references/reference-<book-slug>.md`. This one
+file absorbs what a folder design spreads across `chapters/` + glossary + patterns + cheatsheet — compressed, because
+it's now one file, not a folder.
 
 ### Per-reference-file budget
 
 **Why this is not a per-chapter matrix.** In a folder design, `chapters/ch07.md` is *individually* loadable, so a
-thick book costs the same per consultation as a thin one and its budget can scale linearly with chapter count. Our flat design's load granularity is **the whole book**: whatever this file weighs is what every
+thick book costs the same per consultation as a thin one and its budget can scale linearly with chapter count. Our design's load granularity is **the whole book**: whatever this file weighs is what every
 consultation of that book pays. So the budget scales with content at the bottom and is **capped by
 loadability** at the top.
 
@@ -372,8 +377,8 @@ loadability** at the top.
 3. In minor sections, keep Core idea + framework names only; drop their anti-patterns.
 4. **Never cut:** a framework's exact name and formulation (Quality Rule #2), or `## Decision Rules & Judgment`.
 5. Still over (a 600-page technical reference — rare)? **Stop and ask the user:** split into sibling
-   `reference-<slug>-part1.md` / `-part2.md`, or give that one book a per-chapter folder design instead. This is a
-   real edge of the flat design; say so rather than silently degrading the distillation.
+   `references/reference-<slug>-part1.md` / `-part2.md`, or give that one book a per-chapter folder design instead.
+   This is a real edge of the one-file-per-book design; say so rather than silently degrading the distillation.
 
 **Coverage check before moving on (acceptance is coverage, not length).** Step 3 produced a framework / principle
 / technique list for this book. Every item on it must either appear in the reference file, or be **explicitly
@@ -443,7 +448,7 @@ budget ≈ 400 (frontmatter + How to use + Scope)
 ```
 
 Reference points: N=10 → ~1,500; N=20 → ~1,900; N=40 → ~2,800. **Overflow valve:** past 3,500, move the whole
-Cross-book Topic Index into a sibling `topic-index.md` (loaded on demand) and leave a one-line pointer here. The
+Cross-book Topic Index into `references/topic-index.md` (loaded on demand) and leave a one-line pointer here. The
 **router table never spills** — it is the only thing that lets an agent find a file at all. Past ~30 books, also
 group the router table by theme (a subheading per theme, one row per book inside) so reading it becomes
 "pick a theme, then a book" instead of scanning N rows.
@@ -455,7 +460,7 @@ knowledge lives in the reference files.
 ```markdown
 ---
 name: <library-name>
-description: "Knowledge library across <N> sources: <book1 short>, <book2 short>, …. Use to apply or cross-reference their frameworks on <3–6 shared topics>. Each book has its own reference-<slug>.md, loaded on demand."
+description: "Knowledge library across <N> sources: <book1 short>, <book2 short>, …. Use to apply or cross-reference their frameworks on <3–6 shared topics>. Each book has its own references/reference-<slug>.md, loaded on demand."
 ---
 
 <!-- argument-hint: [topic, framework name, or book] -->
@@ -466,12 +471,12 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
 ## How to use
 - No args → read this router, pick the right book.
 - "about <topic>" → use the Topic Index to open the reference file(s) that cover it.
-- "<book name>" → open that `reference-<slug>.md`.
+- "<book name>" → open that `references/reference-<slug>.md`.
 
 ## Which book for which job  (front-loaded router — the most important section)
 | Book (→ file) | Reach for it when you need… | Its one big idea |
 |---|---|---|
-| <Title> → [reference-<slug>.md](reference-<slug>.md) | <the kind of question it answers> | <one line> |
+| <Title> → [references/reference-<slug>.md](references/reference-<slug>.md) | <the kind of question it answers> | <one line> |
 | … | | |
 
 ## Cross-book Topic Index
@@ -481,8 +486,8 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
      already reachable via that book's router row, so it stays in the reference file,
      not here. CEILING ~40 entries / ~600 tokens. If it still overflows, keep the
      terms shared by the MOST books and end with "(more in individual reference files)";
-     once the whole master passes the 3,500 hard stop, move this section wholesale into a
-     sibling topic-index.md and leave a one-line pointer in its place. -->
+     once the whole master passes the 3,500 hard stop, move this section wholesale into
+     references/topic-index.md and leave a one-line pointer in its place. -->
 - **<Term/Framework>** → <slug>, <slug2>
 - **<Term>** → <slug1>, <slug3>
 
@@ -492,7 +497,7 @@ Covers these sources only. For a topic no book here addresses, say so rather tha
 
 **The 3,500 hard stop is a ceiling, not a wish** — this body is always loaded, in every session. Near the limit,
 cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten the "one big idea" column to a
-phrase, (3) spill the Topic Index to `topic-index.md`, (4) group the router table by theme. **Never cut the router
+phrase, (3) spill the Topic Index to `references/topic-index.md`, (4) group the router table by theme. **Never cut the router
 table's file links** — those are load-bearing.
 
 ---
@@ -506,7 +511,8 @@ Every budget and shape rule above is checkable. Run the validator before reporti
 "$PYTHON_BIN" "$TOOLS/validate_library.py" "$SKILLS_HOME/<library-name>"
 ```
 
-It checks what Steps 5–8 promise: the directory is flat, every `reference-*.md` is reachable from the router,
+It checks what Steps 5–8 promise: `SKILL.md` sits at the root with every reference file inside `references/`
+(and nothing else nested), every `reference-*.md` is reachable from the router,
 no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `400 + 50×N + index` and
 under the 3,500 hard stop, and each reference file is inside its Step 7 cap for its detected type and declared
 depth. Errors exit non-zero; warnings do not.
@@ -551,10 +557,10 @@ Report:
 ✅ Library created: $SKILLS_HOME/<library-name>/
 
 📚 <N> books distilled:
-   reference-<slug1>.md  — <Title1>   (~X tok)
-   reference-<slug2>.md  — <Title2>   (~X tok)
+   SKILL.md                          — router + topic index (~X tok, always loaded)
+   references/reference-<slug1>.md   — <Title1>   (~X tok)
+   references/reference-<slug2>.md   — <Title2>   (~X tok)
    ...
-   SKILL.md              — router + topic index (~X tok, always loaded)
    ────────────────────────────────────────────
    Reference files load on demand — only the master is always in context.
 
@@ -571,11 +577,12 @@ Usage:
 Far simpler than a chapter-renumbering merge — a new book is just a new sibling file.
 
 1. Run Steps 0–2 for the new source(s) only.
-2. Step 5 → derive a unique `reference-<slug>.md` (append `-2` on collision).
+2. Step 5 → derive a unique `references/reference-<slug>.md` (append `-2` on collision).
 3. Step 7 → write the **one new** reference file. Do not touch existing reference files.
 4. Re-index the master `SKILL.md`: add one row to "Which book for which job", merge the new book's terms into the
-   Cross-book Topic Index (append the new slug to existing terms it also covers — or into `topic-index.md` if the
-   library has already spilled it), bump the book count and date. Re-check the master against its Step 8 budget:
+   Cross-book Topic Index (append the new slug to existing terms it also covers — or into
+   `references/topic-index.md` if the library has already spilled it), bump the book count and date. Re-check the
+   master against its Step 8 budget:
    `N` just grew by one, so this is where the overflow valve fires.
 5. Step 9 cleanup; report which book was added and which topic-index entries changed.
 

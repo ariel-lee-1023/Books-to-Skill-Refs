@@ -1,6 +1,6 @@
 # books-to-skill-refs
 
-> Distill **many books at once** into one flat, cross-referenced knowledge library: a single master `SKILL.md` router plus one standalone `reference-<book-slug>.md` per book.
+> Distill **many books at once** into one cross-referenced knowledge library: a single master `SKILL.md` router plus one standalone `references/reference-<book-slug>.md` per book.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Agent Skill](https://img.shields.io/badge/type-agent%20skill-blue.svg)](#)
@@ -15,13 +15,16 @@ Point it at several documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF,
 
 ```
 $SKILLS_HOME/<library-name>/
-├── SKILL.md                    # master: router + library index + cross-book topic index
-├── reference-<book1-slug>.md   # dense standalone distillation of book 1
-├── reference-<book2-slug>.md   # dense standalone distillation of book 2
-└── reference-<bookN-slug>.md
+├── SKILL.md                           # master: router + library index + cross-book topic index
+└── references/
+    ├── reference-<book1-slug>.md      # dense standalone distillation of book 1
+    ├── reference-<book2-slug>.md      # dense standalone distillation of book 2
+    └── reference-<bookN-slug>.md
 ```
 
-Every file is a sibling. No `chapters/`, no per-book subfolders, no separate glossary/patterns/cheatsheet files.
+That is the standard [Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) layout: `SKILL.md` at the root — the only file a host loads automatically — with supporting files under `references/`, loaded on demand.
+
+**One file per book, and they are all siblings.** No `chapters/`, no per-book subfolders inside `references/`, no separate glossary/patterns/cheatsheet files.
 
 The master `SKILL.md` is kept small because it is *always loaded*; the reference files cost nothing until a question actually needs one.
 
@@ -30,9 +33,9 @@ The master `SKILL.md` is kept small because it is *always loaded*; the reference
 | | per-book folder skill | books-to-skill-refs |
 |---|---|---|
 | Books per run | one | **N** |
-| Output per book | nested folder (`SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md`) | **one flat `reference-<slug>.md`** |
+| Output per book | nested folder (`SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md`) | **one `references/reference-<slug>.md`** |
 | Shared file | that book's own `SKILL.md` | **one master `SKILL.md`** routing across all books |
-| Layout | per-book folder nesting | **flat — all files siblings** |
+| Layout | one folder per book, nested inside | **`SKILL.md` + `references/`** — every book a sibling in one directory |
 
 The load-bearing disciplines: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
 
@@ -141,9 +144,10 @@ of magnitude — a 1,080-character Chinese passage estimates as **1** token agai
 silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai source.
 
 **`validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
-generated library: the directory is flat, every reference file is reachable from the router, no router link
-dangles, the topic index honours the ≥2-book rule, the master is under its hard stop, and each reference file is
-inside its cap for its detected type and declared depth. Step 8.5 runs it before reporting success.
+generated library: `SKILL.md` sits at the root with every reference file inside `references/`, every reference file
+is reachable from the router, no router link dangles, the topic index honours the ≥2-book rule, the master is under
+its hard stop, and each reference file is inside its cap for its detected type and declared depth. Step 8.5 runs it
+before reporting success.
 
 **`scan_generated_skill.py`** scans a generated library for instructions aimed at the reading agent. This skill
 reads documents it did not author and writes files a host agent later loads *as instructions* — a laundering path

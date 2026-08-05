@@ -4,9 +4,10 @@
 Why this exists
 ---------------
 The repository's CI validates *its own* SKILL.md. Nothing validated the thing
-the skill actually promises to produce: a flat library of one master router
-plus one reference file per book, inside stated token budgets. This turns the
-"should" statements in SKILL.md into executable assertions.
+the skill actually promises to produce: a library of one master router plus one
+reference file per book, laid out in the Agent Skills convention (`SKILL.md` at
+the root, supporting files under `references/`), inside stated token budgets.
+This turns the "should" statements in SKILL.md into executable assertions.
 
 Usage
 -----
@@ -48,7 +49,10 @@ REFERENCE_CAPS = {
     ("technical", "study"): 20_000,
 }
 
-ALLOWED_FILENAMES = re.compile(r"\A(SKILL\.md|topic-index\.md|reference-[a-z0-9]+(-[a-z0-9]+)*\.md)\Z")
+REFERENCES_DIR = "references"      # Agent Skills convention: supporting files live here
+REFERENCE_NAME = re.compile(r"\Areference-[a-z0-9]+(-[a-z0-9]+)*\.md\Z")
+ALLOWED_ROOT_FILES = re.compile(r"\ASKILL\.md\Z")
+ALLOWED_REFERENCE_FILES = re.compile(r"\A(topic-index\.md|reference-[a-z0-9]+(-[a-z0-9]+)*\.md)\Z")
 SLUG = re.compile(r"\A[a-z0-9]+(-[a-z0-9]+)*\Z")
 RESERVED_SLUG_WORDS = ("claude", "anthropic")
 
@@ -114,23 +118,55 @@ def declared_depth(text: str, fallback: str) -> str:
 # --- checks ---------------------------------------------------------------
 
 def check_layout(lib: Path, rep: Report) -> list[Path]:
-    """Flat directory contract: SKILL.md + reference-*.md siblings, no nesting."""
+    """Agent Skills contract: SKILL.md at the root, reference-*.md under references/.
+
+    One reference file per book, all of them siblings inside `references/` — no
+    per-book folders and no `chapters/`. The nesting the design rejects is
+    nesting *within* a book's material, not the single conventional directory
+    that hosts expect supporting files to live in.
+    """
+    refs_dir = lib / REFERENCES_DIR
+
     for child in sorted(lib.iterdir()):
-        if child.is_dir():
-            rep.error(f"{child.name}/ — the library must be flat; no subdirectories "
-                      f"(no chapters/, no per-book folders)")
+        if child.is_dir() and child.name != REFERENCES_DIR:
+            rep.error(f"{child.name}/ — the only subdirectory a library may have is "
+                      f"{REFERENCES_DIR}/ (no chapters/, no per-book folders)")
 
-    files = sorted(p for p in lib.iterdir() if p.is_file())
-    for f in files:
-        if not ALLOWED_FILENAMES.match(f.name):
-            rep.warn(f"{f.name} — unexpected file; the contract is SKILL.md, "
-                     f"reference-<slug>.md, and optionally topic-index.md")
+    root_files = sorted(p for p in lib.iterdir() if p.is_file())
+    for f in root_files:
+        if ALLOWED_ROOT_FILES.match(f.name):
+            continue
+        if REFERENCE_NAME.match(f.name):
+            rep.error(f"{f.name} sits at the library root — reference files belong in "
+                      f"{REFERENCES_DIR}/ (`mkdir -p {REFERENCES_DIR} && "
+                      f"git mv {f.name} {REFERENCES_DIR}/`), and the router link "
+                      f"needs the same prefix")
+        else:
+            rep.warn(f"{f.name} — unexpected file at the library root; the contract is "
+                     f"SKILL.md plus a {REFERENCES_DIR}/ directory")
 
-    refs = sorted(p for p in files if p.name.startswith("reference-") and p.suffix == ".md")
     if not (lib / "SKILL.md").exists():
         rep.error("SKILL.md is missing — the library has no master router")
+
+    if not refs_dir.is_dir():
+        rep.error(f"{REFERENCES_DIR}/ is missing — reference files live there, "
+                  f"beside SKILL.md at the root")
+        return []
+
+    for child in sorted(refs_dir.iterdir()):
+        if child.is_dir():
+            rep.error(f"{REFERENCES_DIR}/{child.name}/ — {REFERENCES_DIR}/ holds one flat "
+                      f"reference file per book; no per-book folders")
+
+    ref_files = sorted(p for p in refs_dir.iterdir() if p.is_file())
+    for f in ref_files:
+        if not ALLOWED_REFERENCE_FILES.match(f.name):
+            rep.warn(f"{REFERENCES_DIR}/{f.name} — unexpected file; the contract is "
+                     f"reference-<slug>.md, and optionally topic-index.md")
+
+    refs = sorted(p for p in ref_files if REFERENCE_NAME.match(p.name))
     if not refs:
-        rep.error("no reference-*.md files — a library needs at least one book")
+        rep.error(f"no {REFERENCES_DIR}/reference-*.md files — a library needs at least one book")
 
     for r in refs:
         slug = r.stem[len("reference-"):]
@@ -198,16 +234,20 @@ def check_router(master_text: str, lib: Path, refs: list[Path], rep: Report) -> 
         clean = target.split("#")[0]
         linked.add(clean)
         if not (lib / clean).exists():
-            rep.error(f"router links to {clean}, which does not exist")
+            hint = ""
+            if (lib / REFERENCES_DIR / clean).exists():
+                hint = f" — did you mean {REFERENCES_DIR}/{clean}?"
+            rep.error(f"router links to {clean}, which does not exist{hint}")
 
     for r in refs:
-        if r.name not in linked:
-            rep.error(f"{r.name} is not linked from the router table — it is unreachable")
+        rel = r.relative_to(lib).as_posix()
+        if rel not in linked:
+            rep.error(f"{rel} is not linked from the router table — it is unreachable")
 
 
 def check_topic_index(master_text: str, lib: Path, refs: list[Path], rep: Report) -> int:
     """Returns the topic index's token count (0 if absent)."""
-    spilled = lib / "topic-index.md"
+    spilled = lib / REFERENCES_DIR / "topic-index.md"
     sections = sections_of(master_text)
     found = find_section(sections, "topic index")
 
@@ -231,6 +271,7 @@ def check_topic_index(master_text: str, lib: Path, refs: list[Path], rep: Report
     known = {r.stem[len("reference-"):] for r in refs}
     for term, targets in entries:
         slugs = [s.strip().strip("`*_[]()") for s in targets.split(",") if s.strip()]
+        slugs = [s.split("/")[-1] for s in slugs]  # tolerate a references/ prefix
         slugs = [s[len("reference-"):] if s.startswith("reference-") else s for s in slugs]
         slugs = [s[:-3] if s.endswith(".md") else s for s in slugs]
         label = term.strip().strip("*` ")
@@ -312,7 +353,8 @@ def validate(lib: Path) -> Report:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Validate a generated books-to-skill-refs library.")
-    ap.add_argument("library", type=Path, help="path to the flat library directory")
+    ap.add_argument("library", type=Path, help="path to the library directory "
+                                               "(SKILL.md + references/)")
     ap.add_argument("--json", action="store_true", dest="as_json")
     args = ap.parse_args(argv)
 

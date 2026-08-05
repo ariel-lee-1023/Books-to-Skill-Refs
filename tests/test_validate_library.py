@@ -40,6 +40,16 @@ class TestGoodLibrary(unittest.TestCase):
         for name, f in self.rep.facts["references"].items():
             self.assertLessEqual(f["tokens"], f["cap"], name)
 
+    def test_reference_files_live_under_references(self):
+        # The Agent Skills convention: SKILL.md at the root, supporting files
+        # in references/. A library laid out any other way must not validate.
+        self.assertTrue((GOOD / "SKILL.md").is_file())
+        self.assertTrue((GOOD / "references").is_dir())
+        self.assertEqual(
+            sorted(p.name for p in (GOOD / "references").glob("reference-*.md")),
+            ["reference-carnegie-persuasion.md", "reference-cialdini-influence.md"],
+        )
+
     def test_reference_metadata_is_read_from_the_file(self):
         f = self.rep.facts["references"]["reference-cialdini-influence.md"]
         self.assertEqual(f["depth"], "study")
@@ -54,9 +64,12 @@ class TestBadLibrary(unittest.TestCase):
     def test_fails(self):
         self.assertTrue(self.rep.errors)
 
-    def test_rejects_subdirectory(self):
-        self.assertIn("flat", self.blob)
+    def test_rejects_a_subdirectory_other_than_references(self):
+        self.assertIn("only subdirectory", self.blob)
         self.assertIn("chapters", self.blob)
+
+    def test_rejects_a_reference_file_left_at_the_library_root(self):
+        self.assertIn("reference-stray-book.md sits at the library root", self.blob)
 
     def test_rejects_invalid_name_slug(self):
         self.assertIn("Bad_Library", self.blob)
@@ -68,7 +81,7 @@ class TestBadLibrary(unittest.TestCase):
         self.assertIn("reference-ghost.md", self.blob)
 
     def test_reports_orphan_reference_file(self):
-        self.assertIn("reference-orphan-book.md is not linked", self.blob)
+        self.assertIn("references/reference-orphan-book.md is not linked", self.blob)
 
     def test_reports_single_book_topic_index_entry(self):
         self.assertIn("Solo Term", self.blob)
