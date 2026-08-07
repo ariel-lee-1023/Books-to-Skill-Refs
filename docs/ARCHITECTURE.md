@@ -8,8 +8,8 @@ check what the prompt produced.
 SKILL.md ............ the prompt. Steps 0-9, budgets, output contract.
 scripts/extract.py .. entry point (runs without installation)
 bookrefs/ ........... the extraction runtime
-tools/ .............. measurement, validation, security scanning
-tests/ .............. 131 stdlib unittest cases + fixtures
+tools/ .............. acquisition, measurement, validation, security scanning
+tests/ .............. 205 stdlib unittest cases + fixtures
 ```
 
 ## Why the layers are split this way
@@ -27,6 +27,9 @@ bookrefs/
 │                      token constants. One file, because Steps 2.5-7 all read it.
 ├── tokens.py ........ token estimation by script density (canonical)
 ├── structure.py ..... chapter + ToC detection across scripts
+├── probe.py ......... candidate boundaries when structure.py finds too few
+├── corpus.py ........ multi-file source -> one file, in declared order
+├── denoise.py ....... boilerplate removal for a reading slice
 ├── sanitize.py ...... normalisation and the untrusted-input boundary
 ├── dependencies.py .. what is installed, what is missing, what to do
 ├── extract.py ....... orchestrator: N documents -> full_text.txt + metadata.json
@@ -45,6 +48,31 @@ bookrefs/
 Five of eight format families need nothing beyond the standard library. That is
 not an accident of scope — it is what makes the project installable, testable in
 CI without network access, and honest about its one real dependency (PDF).
+
+## Before extraction, and beside it
+
+Three modules sit outside the `documents -> parsers -> ... -> full_text.txt` flow, because the
+work they do is not extraction. Each exists because a real run failed without it.
+
+`corpus.py` runs **before** the flow. A source that arrives as a documentation site must become
+one file first, since the fence is per-file and 51 chapter pages would otherwise become 51
+"books". Ordering is read from the project's own declaration (`_toc.yml`, `index.rst`
+toctrees), and Sphinx toctrees are followed **recursively** — they nest, and a flat read of the
+root reached 56 of 287 files (19%) on a real source against the recursive walk's 265 (92%).
+
+`probe.py` runs **beside** `structure.py`, not instead of it. `structure.py` recognises heading
+dialects, which is right for trade books and wrong for converted academic PDFs that mark
+chapters with a DOI suffix, an `Abstract` block, or a dotted-decimal section number. Across ten
+mixed sources the canonical detector matched the true chapter count once. `probe.py` runs
+several candidate strategies and scores them; the output is meant to be checked against a real
+table of contents, which is why it reports every strategy rather than returning one answer.
+
+`denoise.py` runs **after** the flow, on a copy of a reading slice — never on `full_text.txt`.
+Parsers deliberately preserve `#` headings and pipe rows because `structure.py` reads the first
+and Step 3's tripwire counts the second; denoising the corpus would erase that evidence. Its
+table filter is correspondingly conservative, dropping only rows that are mostly empty or bare
+separators, and `filter_repeats` exempts pipe rows so the two do not compose into something
+that deletes real tables.
 
 ## Three decisions worth knowing
 

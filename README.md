@@ -128,15 +128,37 @@ table never spills. The router table is front-loaded because compaction truncate
 
 ## Tools
 
-Four first-party tools, stdlib only — nothing to install.
+Seven first-party tools, stdlib only — nothing to install.
 
 ```bash
+# preparing sources
+python tools/build_corpus.py https://github.com/org/book --out corpus/book.md  # site/repo -> one file
+python tools/probe_structure.py full_text.txt --source book.pdf               # where are the chapters?
+python tools/clean_slice.py full_text.txt --range 4,2823 --stats-only         # what is this slice costing?
+
+# checking output
 python tools/count_tokens.py reference-*.md --budget 14000   # inside budget?
 python tools/validate_library.py ~/.claude/skills/my-library/ # contract satisfied?
 python tools/scan_generated_skill.py my-library --strict      # injected instructions?
 python tools/validate_skill.py SKILL.md --lens all            # valid on every host?
-python -m unittest discover -s tests -v                       # 131 tests, no network
+python -m unittest discover -s tests -v                       # 205 tests, no network
 ```
+
+**`build_corpus.py`** exists because `extract.py` emits one `SOURCE:` fence per *file*, so a book that arrives as
+a 51-page documentation site would otherwise become 51 "books". It consolidates one source into one file in the
+order the project declares — `_toc.yml`, or `index.rst` toctrees **followed recursively**, since they nest and a
+flat read of the root reached 19% of a real 287-page source against the recursive walk's 92%. Always `--dry-run`
+first and check the part list against the book's table of contents.
+
+**`probe_structure.py`** finds chapters that heading-dialect detection cannot see. Converted academic PDFs mark
+chapters with a publisher DOI suffix, an `Abstract` block, or `11.2 SECTION TITLE` rather than "Chapter 7";
+across ten mixed sources the canonical count was right once. Six strategies run and are scored — but it is a
+probe, not a detector: a run of prose cross-references scores well too, so verify before slicing.
+
+**`clean_slice.py`** removes what a slice costs without teaching anything — page markers, `Link:` runs, rST
+directives, site navigation, quiz blocks that repeat every option once per answer (~250 of 460 lines on one
+measured chapter). Run it on a copy of a span, never on `full_text.txt`: parsers preserve `#` headings and pipe
+rows because `structure.py` and the Step 3 tripwire read them.
 
 **`count_tokens.py`** estimates tokens by script density rather than by whitespace. This matters more than it
 sounds: the conventional word-split estimate (`len(text.split()) / 0.75`) undercounts space-free scripts by orders

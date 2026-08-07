@@ -105,6 +105,30 @@ Verify at least one supported file among `INPUT_PATHS`. Expand directories/globs
 
 Expect and keep **multiple** sources — each becomes its own reference file.
 
+### 1a — When a source is a site or a repo, not a file
+
+A source may arrive as a GitHub repository, a documentation site, or a list of chapter URLs. Downloading it is
+the easy half. The half that matters: **`extract.py` emits one `SOURCE:` fence per file**, so handing it a
+directory of 51 chapter pages produces 51 "books" and the one-reference-file-per-book contract collapses.
+
+Consolidate each such source into **one file** first, in the order the project itself declares:
+
+```bash
+"$PYTHON_BIN" "$SKILL_DIR/tools/build_corpus.py" <source> --out corpus/<book-slug>.md --title "<Book Title>"
+#   <source> = a local directory, or a git URL (cloned shallowly)
+#   --urls-from FILE   instead: download the URLs listed in FILE, one per line
+#   --dry-run          print the part order and write nothing — do this first
+#   --show-unreached   list files on disk the declared order never mentions
+```
+
+Ordering is read from `_toc.yml` (Jupyter Book) or `index.rst` toctrees (Sphinx), and **Sphinx toctrees are
+followed recursively** — they nest, and a flat read of the root reaches only the first level. Measured on a real
+287-page book: flat 56 files (19%), recursive 265 (92%). Chapter order is the spine Step 3 plans against and
+Step 7 front-loads from, so getting it wrong is not cosmetic — and it is silent.
+
+**Always `--dry-run` first** and check the part list against the book's own table of contents. Then run once per
+source and pass the resulting files to `extract.py` together, so each becomes exactly one fence.
+
 **Preflight the runtime NOW, before asking the user anything else** — fail here with a fix rather than after the
 user has answered content-type and purpose questions:
 
@@ -263,12 +287,50 @@ section slice **exactly once** → write. Never `sed` a range you have already r
 Use targeted `Read(offset,limit)` slices, not unbounded reads. Re-reading a 200-page book once per section costs
 millions of input tokens; grep+sed keeps cost proportional to output.
 
+**Clean the slice before reading it.** Slicing controls *how much* you read; it says nothing about *what is in*
+the slice. Converted sources carry a lot that costs tokens and teaches nothing — PDF page markers and `Link:`
+runs, rST directives, per-page site navigation, and end-of-chapter quiz blocks that repeat every option once per
+answer. On one measured chapter the quiz block was **~250 of 460 lines**: more than half the read spent on
+permutations of four multiple-choice options. Those tokens come out of the 4× budget above.
+
+```bash
+"$PYTHON_BIN" "$SKILL_DIR/tools/clean_slice.py" "$FULL_TEXT_PATH" --range <start>,<end> --out /tmp/slice.txt
+#   --source NAME   resolve the span from metadata.json instead of --range
+#   --stats-only    report the saving without emitting the text
+#   --filters ...   pdf,rst,nav,quiz,repeats,blanks (default: auto-detect)
+```
+
+Then `Read` the cleaned file. **Never clean `full_text.txt` in place**: parsers deliberately preserve `#`
+headings and pipe-table rows because `structure.py` reads the first and Step 3's tripwire counts the second, so
+denoising the corpus would erase the evidence those run on. Clean a copy of a span on its way to being read.
+
 ---
 
 ## Step 3 — Analyze structure, per book (the loop begins)
 
 For **each** source (bounded by its `SOURCE:` fence), read the first ~8,000 chars of its slice to identify:
 title, author(s), chapter/section structure, core themes, approximate chapter count. Read its TOC if present.
+
+**When `chapters_detected` looks too low, probe before planning.** `metadata.json`'s count comes from
+`bookrefs.structure`, which recognises heading *dialects* — "Chapter 7", "第三章", "บทที่ ๓". Converted academic
+PDFs usually contain none of those: an edited volume marks chapters with a publisher DOI suffix and an `Abstract`
+block, a monograph uses `11.2 MATRIX THRESHOLDING`, lecture notes use markdown levels with no chapter word at
+all. Measured across ten mixed sources, the canonical count matched the true chapter count in **one**. A source
+whose structure reads as zero is a source that gets distilled blind.
+
+```bash
+"$PYTHON_BIN" "$SKILL_DIR/tools/probe_structure.py" "$FULL_TEXT_PATH" --source <filename>
+#   --range START,END   instead of --source
+#   --strategy ...      canonical,markdown,numbered,doi,abstract,allcaps (default: all)
+#   --max-level N       deepest markdown heading counted as a boundary (default 2)
+```
+
+It runs each strategy, scores them for chapter-plausibility, and marks a best guess. **It is a probe, not a
+detector**: a run of prose cross-references ("as we saw in Chapter 7…") is evenly spaced too and can score well.
+Check the top candidates against the book's own table of contents before slicing anything.
+
+Note also that the Step 2.6 grep in this file is the *fallback*, not the primary: on a converted monograph its
+hits can be entirely cross-references, which looks like success and is not.
 
 **Misclassification tripwire (when `BOOK_TYPE=text`, including the "not sure" path):** a book routed through the
 fast extractor that is actually technical will silently lose code/tables/formulas — the exact thing Quality Rule #2

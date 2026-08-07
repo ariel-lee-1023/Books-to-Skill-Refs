@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — tooling for sources that are not already single files
+
+Three gaps that a real ten-source run hit, each now a module with a CLI and tests.
+
+- **`bookrefs/corpus.py` + `tools/build_corpus.py`** — consolidate a multi-file source into one
+  file, in the order the project declares. Step 1 assumed documents on disk; sources
+  increasingly arrive as a repository, a documentation site, or a list of chapter URLs, and
+  because `extract.py` fences per *file*, a directory of 51 chapter pages became 51 "books".
+  Ordering reads `_toc.yml` (Jupyter Book) or `index.rst` toctrees (Sphinx), and **Sphinx
+  toctrees are followed recursively** — measured on a 287-page source, a flat read of the root
+  reached 56 files (19%) against the recursive walk's 265 (92%). Files on disk that the declared
+  order never mentions are reported, not silently swept in. Fetching (shallow `git clone`,
+  `--urls-from`) uses `subprocess` and `urllib`; no new dependency.
+
+- **`bookrefs/probe.py` + `tools/probe_structure.py`** — candidate chapter boundaries for
+  sources whose headings `structure.py` cannot see. It recognises dialects ("Chapter 7",
+  "第三章"), which converted academic PDFs do not use: they mark chapters with a publisher DOI
+  suffix, an `Abstract` block, `11.2 SECTION TITLE`, or a markdown level. Across ten mixed
+  sources the canonical count matched the true chapter count in one. Six strategies run and are
+  scored for chapter-plausibility. Deliberately a probe, not a detector — a run of prose
+  cross-references is evenly spaced too — so it prints every strategy for checking against a
+  real table of contents.
+
+- **`bookrefs/denoise.py` + `tools/clean_slice.py`** — strip boilerplate from a reading slice
+  and report the saving. Step 2.6 bounds *how much* is read but not what is in it: PDF page
+  markers and `Link:` runs, rST directives, site navigation, and quiz blocks that repeat every
+  option once per answer. On one measured chapter the quiz block was ~250 of 460 lines. Those
+  tokens come out of the 4x input budget. Runs on a copy of a span, **never** on
+  `full_text.txt`, since parsers preserve `#` headings and pipe rows for `structure.py` and the
+  Step 3 tripwire; the table filter drops only mostly-empty or separator rows, and
+  `filter_repeats` exempts pipe rows so the two cannot compose into a table deleter.
+
+- **`SKILL.md`** — new Step 1a for site/repo sources; Step 2.6 gains slice cleaning with the
+  in-place prohibition stated; Step 3 gains the probe, and now says plainly that its own grep is
+  a fallback whose hits can be entirely prose cross-references.
+
+- **Tests** — 133 to 205 cases, covering recursive toctrees, cycles, caption inheritance,
+  natural sort, HTML parts converted rather than embedded raw, the canonical detector's blind
+  spot, scoring behaviour, and the table-conservatism promise end to end.
+
 ### Changed — the output layout is now the Agent Skills convention
 
 Generated libraries were flat: `SKILL.md` and every `reference-*.md` as siblings in one
