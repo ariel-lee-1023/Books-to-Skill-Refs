@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
+from reference_budget import reference_cap  # noqa: E402
 from validate_library import (  # noqa: E402
-    REFERENCE_CAPS,
     detect_book_type,
     declared_depth,
     sections_of,
@@ -119,15 +119,15 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(declared_depth("no declaration here", "study"), "study")
 
     def test_caps_match_skill_md(self):
-        self.assertEqual(REFERENCE_CAPS[("text", "reference")], 9_000)
-        self.assertEqual(REFERENCE_CAPS[("text", "study")], 14_000)
-        self.assertEqual(REFERENCE_CAPS[("technical", "reference")], 12_000)
-        self.assertEqual(REFERENCE_CAPS[("technical", "study")], 20_000)
+        self.assertEqual(reference_cap("reference", "text"), 8_500)
+        self.assertEqual(reference_cap("study", "text"), 14_000)
+        self.assertEqual(reference_cap("reference", "technical"), 11_000)
+        self.assertEqual(reference_cap("study", "technical"), 19_500)
 
     def test_technical_caps_exceed_text_caps(self):
         for depth in ("reference", "study"):
-            self.assertGreater(REFERENCE_CAPS[("technical", depth)],
-                               REFERENCE_CAPS[("text", depth)])
+            self.assertGreater(reference_cap(depth, "technical"),
+                               reference_cap(depth, "text"))
 
 
 class TestMissingLibrary(unittest.TestCase):

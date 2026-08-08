@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the reference-file and master budgets are computed, not looked up
+
+Step 7 was a 2x2 lookup table and Step 8 a formula missing a term. Measured against a five-book
+library, both were wrong in ways that a real run would not surface.
+
+- **`tools/reference_budget.py` (new)** — the single definition of both budgets; `validate_library.py`
+  and CI import it, so the prose and the enforcement cannot drift apart. CLI computes a single book's
+  budget, the master budget, the per-cell cap table, or measures a whole generated library.
+- **Step 7 is now `scaffold + (1050 + 1500*sqrt(n_sections)) * depth * type`.** Three defects fixed:
+  the old per-section allowance priced the blocks you *write* (which the cut order tells you to merge
+  to hit the budget, so it could never bind); per-section cost is not constant but falls as sections
+  rise, so a linear allowance over-budgeted thick books by ~60%; and the table contradicted itself —
+  a 26-section technical book at study depth had an unsatisfiable spec, with no rule saying which
+  constraint won.
+- **Caps are derived, not asserted** — each is the budget at 50 sections rounded up to the next 500,
+  so a budget can never exceed its own cap. Text/study is unchanged at 14,000; the other three cells
+  move by 5-11%.
+- **Step 8 gains a capability term.** The old `400 + 50xN + index` had no term for the Voice, opening
+  protocol, Capability and Standing-rules blocks — 2,299 of 3,158 measured tokens — so it read 3.3x
+  under and a correct master looked wildly over budget. Now `300 + 75xN + 350xC + 900 + index`, hard
+  stop raised 3,500 -> 4,500, with an ordered valve list ending in "ask about splitting the library".
+- **CI enforces it** — a conforming fixture must pass `--strict`, a new over-budget fixture must fail,
+  and a property check asserts no cell's budget can exceed its own cap.
+
+Calibrated on five files from one library, all `study`/`text`: mean 4.9% / max 8.7%. The `reference`
+and `technical` multipliers are back-solved from the replaced table's midpoints, not fitted — there is
+no data for those cells, and `SKILL.md` says so.
+
 ### Added — tooling for sources that are not already single files
 
 Three gaps that a real ten-source run hit, each now a module with a CLI and tests.

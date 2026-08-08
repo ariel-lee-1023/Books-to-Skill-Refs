@@ -137,7 +137,8 @@ python tools/probe_structure.py full_text.txt --source book.pdf               # 
 python tools/clean_slice.py full_text.txt --range 4,2823 --stats-only         # what is this slice costing?
 
 # checking output
-python tools/count_tokens.py reference-*.md --budget 14000   # inside budget?
+python tools/reference_budget.py --sections 22               # what should this book cost?
+python tools/reference_budget.py ~/.claude/skills/my-library/ # is the library inside its budgets?
 python tools/validate_library.py ~/.claude/skills/my-library/ # contract satisfied?
 python tools/scan_generated_skill.py my-library --strict      # injected instructions?
 python tools/validate_skill.py SKILL.md --lens all            # valid on every host?
@@ -198,8 +199,8 @@ For a pure structural distillation with zero cheatsheet residue, delete the `## 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: the prompt states contracts and the tools enforce them
-— if you change a budget in `SKILL.md`, change the matching constant in `tools/validate_library.py` and add a
-test. Run the suite before opening a PR.
+— if you change a budget in `SKILL.md`, change the matching constant in `tools/reference_budget.py` (the single
+definition, which `validate_library.py` and CI both import) and add a test. Run the suite before opening a PR.
 
 ## License
 

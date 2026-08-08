@@ -30,24 +30,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from count_tokens import estimate_tokens, strip_frontmatter  # noqa: E402
+from reference_budget import (  # noqa: E402
+    MASTER_HARD_STOP,
+    TOLERANCE,
+    master_budget,
+    reference_budget,
+    reference_cap,
+)
 
 # --- contract constants, mirroring SKILL.md -------------------------------
-
-MASTER_HARD_STOP = 3_500           # Step 8
-MASTER_BASE = 400                  # frontmatter + How to use + Scope
-MASTER_PER_BOOK = 50               # one router row per book
-MASTER_INDEX_ALLOWANCE = 600       # topic index share of the budget
+#
+# The budgets themselves live in reference_budget.py so that this validator, the
+# CI step and the skill's own Step 7/8 prose cannot drift apart. Only the
+# contract constants that are unique to this file stay here.
 
 TOPIC_INDEX_MAX_ENTRIES = 40       # Step 8
 TOPIC_INDEX_MIN_BOOKS = 2          # the >=2-book inclusion rule
 
-# Step 7 caps: (BOOK_TYPE, DEPTH) -> hard cap
-REFERENCE_CAPS = {
-    ("text", "reference"): 9_000,
-    ("text", "study"): 14_000,
-    ("technical", "reference"): 12_000,
-    ("technical", "study"): 20_000,
-}
+SECTIONS_DECLARED = re.compile(r"\*\*Sections\*\*:\s*~?([0-9]+)")
+CAPABILITY_BLOCK = re.compile(r"^##\s+Capability\b", re.MULTILINE)
 
 REFERENCES_DIR = "references"      # Agent Skills convention: supporting files live here
 REFERENCE_NAME = re.compile(r"\Areference-[a-z0-9]+(-[a-z0-9]+)*\.md\Z")
@@ -200,19 +201,24 @@ def check_master_frontmatter(master_text: str, rep: Report) -> None:
         rep.error("`description:` is too short to trigger reliably")
 
 
-def check_master_budget(master_text: str, n_books: int, index_tokens: int, rep: Report) -> None:
-    body = estimate_tokens(strip_frontmatter(master_text))
-    budget = MASTER_BASE + MASTER_PER_BOOK * n_books + min(index_tokens, MASTER_INDEX_ALLOWANCE)
+def check_master_budget(master_text: str, n_books: int, index_entries: int, rep: Report) -> None:
+    body_text = strip_frontmatter(master_text)
+    body = estimate_tokens(body_text)
+    n_caps = len(CAPABILITY_BLOCK.findall(body_text))
+    budget = master_budget(n_books, n_caps, index_entries)
     rep.facts["master_body_tokens"] = body
     rep.facts["master_budget"] = budget
+    rep.facts["master_capabilities"] = n_caps
 
     if body > MASTER_HARD_STOP:
         rep.error(f"SKILL.md body is ~{body:,} tokens, over the {MASTER_HARD_STOP:,} hard stop. "
-                  f"It is always loaded — spill the Topic Index to topic-index.md, or group "
-                  f"the router table by theme.")
-    elif body > budget:
+                  f"It is always loaded — apply the Step 8 valves in order: spill the Topic Index "
+                  f"to topic-index.md, consolidate Capability blocks to <=4, then group the router "
+                  f"table by theme.")
+    elif body > round(budget * (1 + TOLERANCE)):
         rep.warn(f"SKILL.md body is ~{body:,} tokens, over its ~{budget:,} scaling budget "
-                 f"(400 + 50x{n_books} + index). Still under the {MASTER_HARD_STOP:,} hard stop.")
+                 f"(300 + 75x{n_books} + 350x{n_caps} + 900 + index) by more than the "
+                 f"{TOLERANCE:.0%} tolerance. Still under the {MASTER_HARD_STOP:,} hard stop.")
 
 
 def check_router(master_text: str, lib: Path, refs: list[Path], rep: Report) -> None:
@@ -292,16 +298,27 @@ def check_reference(path: Path, master_depth: str, rep: Report) -> None:
     text = path.read_text(encoding="utf-8")
     depth = declared_depth(text, master_depth)
     book_type = detect_book_type(text)
-    cap = REFERENCE_CAPS[(book_type, depth)]
+    cap = reference_cap(depth, book_type)
     tokens = estimate_tokens(text)
+    declared = SECTIONS_DECLARED.search(text)
+    sections = int(declared.group(1)) if declared else None
+    budget = reference_budget(sections, depth, book_type) if sections else None
     rep.facts.setdefault("references", {})[path.name] = {
         "tokens": tokens, "cap": cap, "depth": depth, "type": book_type,
+        "sections": sections, "budget": budget,
     }
 
     if tokens > cap:
         rep.error(f"{path.name} is ~{tokens:,} tokens, over the {cap:,} cap for "
                   f"{book_type}/{depth}. This file loads whole on every consultation — "
                   f"apply Step 7's cut order rather than truncating.")
+    elif budget is None:
+        rep.warn(f"{path.name} has no `**Sections**: N` in its header line, so its Step 7 "
+                 f"budget cannot be computed — only the {cap:,} cap could be checked")
+    elif tokens > round(budget * (1 + TOLERANCE)):
+        rep.warn(f"{path.name} is ~{tokens:,} tokens against a computed budget of {budget:,} "
+                 f"for {sections} sections ({book_type}/{depth}), over the {TOLERANCE:.0%} "
+                 f"tolerance. Merge adjacent thin sections before trimming evidence.")
 
     if not re.match(r"^#\s+\S", text, re.MULTILINE):
         rep.error(f"{path.name} has no `# <Title>` heading")
@@ -340,8 +357,8 @@ def validate(lib: Path) -> Report:
     master_text = master.read_text(encoding="utf-8")
     check_master_frontmatter(master_text, rep)
     check_router(master_text, lib, refs, rep)
-    index_tokens = check_topic_index(master_text, lib, refs, rep)
-    check_master_budget(master_text, len(refs), index_tokens, rep)
+    check_topic_index(master_text, lib, refs, rep)
+    check_master_budget(master_text, len(refs), rep.facts.get("topic_index_entries", 0), rep)
 
     master_depth = declared_depth(master_text, "study")
     for r in refs:

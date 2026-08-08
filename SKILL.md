@@ -241,7 +241,7 @@ Present a per-book table so the user sees where the cost is:
 
 💰 Estimated cost (Full build):
    Input  (reading + prompts): ~<sum(estimated_tokens)*1.3>K
-   Output (1 reference/book + 1 master): ~<Σ per-book budget + master (400 + 50×N + index)>K
+   Output (1 reference/book + 1 master): ~<Σ per-book budget + master (300 + 75×N + 350×C + 900 + index)>K
    Total: ~<N>K   (Sonnet ~$X · Haiku ~$X)
    ⏱ ~<N> min
 
@@ -249,8 +249,8 @@ Present a per-book table so the user sees where the cost is:
 ➡ Proceed? (or "analyze only")
 ```
 
-Per-book output budget uses the Step 7 matrix — take the **book range** midpoint scaled by that book's detected
-section count, not a flat per-book constant. Prices (2025 ref): Sonnet in $3 / out $15 per MTok; Haiku in $0.80 /
+Per-book output budget is the Step 7 formula evaluated for each book's detected section count, depth and type —
+`python3 tools/reference_budget.py --sections <n> --depth <d> --type <t>`, never a flat per-book constant. Prices (2025 ref): Sonnet in $3 / out $15 per MTok; Haiku in $0.80 /
 out $4. Wait for confirmation. "analyze only" → Mode 2.
 
 ---
@@ -419,18 +419,58 @@ thick book costs the same per consultation as a thin one and its budget can scal
 consultation of that book pays. So the budget scales with content at the bottom and is **capped by
 loadability** at the top.
 
+**The budget is computed, not looked up.** Run `tools/reference_budget.py` — it is the single definition, and
+`tools/validate_library.py` and CI measure against the same function.
+
+```
+scaffold = 2,250   if DEPTH=study        # header + Mental Model + Worked Example
+         = 1,700   if DEPTH=reference    #   + Decision Rules & Judgment + Key Takeaways
+                                         # reference depth drops the Worked Example (~510)
+
+body     = ( 1,050 + 1,500 × sqrt(n_sections) ) × depth_factor × type_factor
+             depth_factor : study 1.00 · reference 0.55
+             type_factor  : text  1.00 · technical 1.45
+
+budget   = scaffold + body            measured with ±10% tolerance
+cap      = budget(n_sections = 50), rounded UP to the next 500 — per cell:
+```
+
 | | `DEPTH=reference` | `DEPTH=study` |
 |---|---|---|
-| `BOOK_TYPE=text` | ~200–350 tok/section · book 3,000–6,000 · **cap 9,000** | ~400–700 tok/section · book 6,000–12,000 · **cap 14,000** |
-| `BOOK_TYPE=technical` | ~350–500 tok/section · book 4,500–9,000 · **cap 12,000** | ~700–1,200 tok/section · book 9,000–18,000 · **cap 20,000** |
+| `BOOK_TYPE=text` | **cap 8,500** | **cap 14,000** |
+| `BOOK_TYPE=technical` | **cap 11,000** | **cap 19,500** |
 
-- **Per-section allowance sets the shape** — it is what keeps a 30-section book from being crushed into the same
-  budget as a 10-section one. (Calibration: upstream measures its *full* chapter template at 700–900 tok of dense
-  prose; the section block below is a subset of it, which lands ~150–250 at the terse end.)
-- **The book range is a target, not a floor** — a thin book legitimately lands under it. Density beats length;
-  never pad to hit a number.
+- **`n_sections` is the *book's* own top-level structure** — the chapter/part count Step 3 already read off the
+  TOC. It is **not** the number of blocks you decide to write. Pricing the blocks you write is circular: the cut
+  order below tells you to merge thin sections precisely so you land inside the budget, so a budget computed from
+  the merged count can never bind. (Measured: blocks actually written spanned 7.3× across a five-book library
+  while the files themselves spanned 1.36×. The book's own section count predicts file size at r = +0.85; the
+  blocks written, at +0.53.)
+- **Square root, not linear.** Cost per section *falls* as sections rise — measured 462 → 287 tok/section from an
+  11-section to a 25-section book, because you merge and compress. A linear per-section allowance over-budgets a
+  thick book by ~60%, and over-budgeting is the direction that produces bloat and collides with the cap. Doubling
+  the chapters buys about 41% more file.
+- **The variable part is one section.** `Frameworks & Structure` is 72–77% of a reference file and carries all the
+  variance; everything else measured near-constant (header ~75, Mental Model ~430, Worked Example ~510, Decision
+  Rules ~720, Key Takeaways ~290). That is why the formula is a constant plus one term.
+- **The budget is a target, not a floor** — a thin book legitimately lands under it. Density beats length; never
+  pad to hit a number.
 - **The cap is hard**, because it is the price of a single consultation. A book over cap gets there by
   *selection*, never by truncation — see the cut order below.
+
+**Density self-check, after writing.** Divide the file's `Frameworks & Structure` tokens by the number of Step 3
+items it retained. The measured band is **50–70 tokens per retained named item** (five books: 57 / 55 / 53 / 61 /
+71). Under 45 you are listing names without content; over 75 you are padding with prose around too few items.
+This is the measurable form of "acceptance is coverage, not length" — it does not change the budget.
+
+**Calibration status — read before trusting the constants.** Fitted against **five reference files from one
+library** (a 630-page-average English narrative-nonfiction set, all `study`/`text`), measured with this repo's own
+`count_tokens.py`. On that data the formula lands mean 4.9% / max 8.7% from the hand-written files. The `reference`
+and `technical` multipliers are **not fitted** — there is no data for those three cells; they are back-solved from
+the midpoints of the matrix this formula replaces, so they preserve the original author's intent rather than
+inventing one. Treat the structure as settled and the constants as provisional: record realised sizes so a second
+library can recalibrate. If a run lands consistently 20%+ off in one direction, move the scaffold constant first —
+it is the least corpus-invariant part.
 
 **When a book projects over cap, cut in this order:**
 1. Drop to `reference` depth for this book — delete the Worked Example.
@@ -500,20 +540,40 @@ lives in the reference files (loaded on demand). Keep it small; it is always loa
 **CRITICAL: keep the body within the scaling budget below and front-load the router table** — compaction truncates
 from the end.
 
-**Master budget scales with book count** (it must: the router table is inherently O(N)):
+**Master budget scales with book count** (it must: the router table is inherently O(N)) **and with how much
+behaviour the library claims**:
 
 ```
-budget ≈ 400 (frontmatter + How to use + Scope)
-       +  50 × N (one router row per book)
-       + topic index (~15/entry, ≤600)
-       —— hard stop at 3,500 ——
+budget ≈ 300 (frontmatter + Scope & limits)
+       +  75 × N (one router row per book)
+       + 350 × C (one Capability block each)
+       + 900 (Voice + opening protocol + Standing rules)
+       +  25 × topic-index entries (≤600)
+       —— hard stop at 4,500 ——
 ```
 
-Reference points: N=10 → ~1,500; N=20 → ~1,900; N=40 → ~2,800. **Overflow valve:** past 3,500, move the whole
-Cross-book Topic Index into `references/topic-index.md` (loaded on demand) and leave a one-line pointer here. The
-**router table never spills** — it is the only thing that lets an agent find a file at all. Past ~30 books, also
-group the router table by theme (a subheading per theme, one row per book inside) so reading it becomes
-"pick a theme, then a book" instead of scanning N rows.
+`tools/reference_budget.py` computes this too; `validate_library.py` checks it.
+
+**Why the capability term exists.** The previous formula priced only frontmatter, router rows and the index — it
+had no term for the blocks that make a multi-book library a *skill* rather than an index. Measured on a five-book
+library, those blocks (Voice, opening protocol, four Capability sections, Standing rules) were **2,299 of 3,158
+tokens**, so the old formula came out 3.3× under and the master looked wildly over budget while being exactly
+right. The router-row term was the one part that was already accurate — measured 76 tok/book against the stated 50,
+so it is now 75.
+
+Reference points (C=4, index spilled): N=5 → ~2,975; N=10 → ~3,350; N=20 → ~4,100; N=30 → ~4,850.
+
+**Overflow valves, in order.** Past the hard stop:
+1. Move the whole Cross-book Topic Index into `references/topic-index.md` (loaded on demand), leaving a one-line
+   pointer. Saves up to 600.
+2. Consolidate Capability blocks to **≤4**. Each merge saves ~350. Behaviour cannot spill to a reference file —
+   it has to be always loaded — so it has to be *fewer*, not elsewhere.
+3. Past ~30 books the router table alone approaches the stop. Group it by theme (a subheading per theme, one row
+   per book inside) so reading it becomes "pick a theme, then a book"; and if that is not enough, **stop and ask
+   the user** whether to split into two libraries. This is the master's version of the reference file's part1/part2
+   edge — say so rather than silently truncating.
+
+The **router table never spills** — it is the only thing that lets an agent find a file at all.
 
 **Router only, never a knowledge dump.** A single-book skill can afford a ~2,000-token "core frameworks" block in
 its always-loaded file; with N books any such selection is arbitrary, and the cost is paid every session. The
@@ -548,7 +608,7 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
      already reachable via that book's router row, so it stays in the reference file,
      not here. CEILING ~40 entries / ~600 tokens. If it still overflows, keep the
      terms shared by the MOST books and end with "(more in individual reference files)";
-     once the whole master passes the 3,500 hard stop, move this section wholesale into
+     once the whole master passes the 4,500 hard stop, move this section wholesale into
      references/topic-index.md and leave a one-line pointer in its place. -->
 - **<Term/Framework>** → <slug>, <slug2>
 - **<Term>** → <slug1>, <slug3>
@@ -557,9 +617,10 @@ description: "Knowledge library across <N> sources: <book1 short>, <book2 short>
 Covers these sources only. For a topic no book here addresses, say so rather than inventing it.
 ```
 
-**The 3,500 hard stop is a ceiling, not a wish** — this body is always loaded, in every session. Near the limit,
+**The 4,500 hard stop is a ceiling, not a wish** — this body is always loaded, in every session. Near the limit,
 cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten the "one big idea" column to a
-phrase, (3) spill the Topic Index to `references/topic-index.md`, (4) group the router table by theme. **Never cut the router
+phrase, (3) spill the Topic Index to `references/topic-index.md`, (4) consolidate Capability blocks to ≤4, (5) group
+the router table by theme, and past ~30 books ask the user about splitting the library. **Never cut the router
 table's file links** — those are load-bearing.
 
 ---
@@ -575,9 +636,9 @@ Every budget and shape rule above is checkable. Run the validator before reporti
 
 It checks what Steps 5–8 promise: `SKILL.md` sits at the root with every reference file inside `references/`
 (and nothing else nested), every `reference-*.md` is reachable from the router,
-no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `400 + 50×N + index` and
-under the 3,500 hard stop, and each reference file is inside its Step 7 cap for its detected type and declared
-depth. Errors exit non-zero; warnings do not.
+no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `300 + 75×N + 350×C + 900
++ index` and under the 4,500 hard stop, and each reference file is inside its computed Step 7 budget (±10%) and
+its cap for the detected type and declared depth. Errors exit non-zero; warnings do not.
 
 **Fix and re-run rather than reporting with errors outstanding.** A cap violation is fixed with Step 7's cut
 order; a master overflow with Step 8's overflow valve. If the validator is unavailable, say so explicitly in the
