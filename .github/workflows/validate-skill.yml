@@ -47,6 +47,32 @@ jobs:
           fi
           echo "validate_library.py correctly rejected the broken fixture"
 
+      - name: Budgets — conforming fixture must be inside its computed budgets
+        run: python tools/reference_budget.py tests/fixtures/good-library --strict
+
+      - name: Budgets — over-budget fixture must be caught
+        run: |
+          if python tools/reference_budget.py tests/fixtures/over-budget-library; then
+            echo "::error::reference_budget.py accepted a library that busts its cap"
+            exit 1
+          fi
+          echo "reference_budget.py correctly rejected the over-budget fixture"
+
+      - name: Budget formula — caps must dominate their own budgets
+        run: |
+          python - <<'EOF'
+          import sys; sys.path.insert(0, "tools")
+          from reference_budget import CAP_AT_SECTIONS, reference_budget, reference_cap
+          bad = [(n, d, t)
+                 for d in ("study", "reference") for t in ("text", "technical")
+                 for n in range(1, CAP_AT_SECTIONS + 1)
+                 if reference_budget(n, d, t) > reference_cap(d, t)]
+          if bad:
+              print("::error::budget exceeds its own cap for %r" % (bad[:5],))
+              raise SystemExit(1)
+          print("budget <= cap for every cell across 1-%d sections" % CAP_AT_SECTIONS)
+          EOF
+
       - name: Injection scan — conforming fixture must be clean
         run: python tools/scan_generated_skill.py tests/fixtures/good-library --strict
 
