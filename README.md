@@ -112,19 +112,55 @@ Before generating anything, the skill shows a per-book token and cost estimate a
 
 ## Output sizing
 
-Budgets scale with the book, because the section template does. A reference file loads *whole* on every
-consultation, so the range is a target while the cap is hard:
+A reference file loads *whole* on every consultation, so what it weighs is what every future question about
+that book costs. The budget is **computed, not looked up** — `tools/reference_budget.py` is the single
+definition, and `validate_library.py` and CI measure against the same function.
+
+```
+scaffold = 2,250 study | 1,700 reference        # reference drops the Worked Example
+body     = (1,050 + 1,500 × √n_sections) × depth_factor × type_factor
+             depth: study 1.00 · reference 0.55    type: text 1.00 · technical 1.45
+budget   = scaffold + body                      # a target, ±10% — never a floor
+cap      = budget at 50 sections, rounded up to the next 500
+```
 
 | | `DEPTH=reference` | `DEPTH=study` |
 |---|---|---|
-| Text-heavy book | ~200–350/section · 3,000–6,000 · cap 9,000 | ~400–700/section · 6,000–12,000 · cap 14,000 |
-| Technical book | ~350–500/section · 4,500–9,000 · cap 12,000 | ~700–1,200/section · 9,000–18,000 · cap 20,000 |
+| Text-heavy book | cap **8,500** | cap **14,000** |
+| Technical book | cap **11,000** | cap **19,500** |
 
-A book over cap gets there by selection, never truncation — `SKILL.md` Step 7 states the cut order.
+**Why this form.** Deciding what to measure came first, and everything else follows from it. `n_sections` is
+the book's own top-level structure, read off the table of contents before a line of the file exists — not the
+number of blocks the writer ends up producing, because the remedy for a book projecting over budget is to merge
+thin sections until it fits, so a budget priced on blocks written is one its own remedy dissolves, and a
+quantity that moves when you apply the control cannot be the input that sets it. The measurement agrees: across
+a five-book library, blocks written spanned 7.3× while the finished files spanned 1.36×, and the book's own
+section count predicts file size at r = +0.85 against +0.53 for blocks written.
 
-Master `SKILL.md` is always loaded, so its budget scales with the library: `400 + 50 × N + index (≤600)`, with a
-**hard stop at 3,500**. Past that the cross-book topic index spills to a sibling `topic-index.md`; the router
-table never spills. The router table is front-loaded because compaction truncates from the end.
+The functional form is a claim about the material rather than a matter of taste. Cost per section *falls* as a
+book thickens — 462 tokens per section at eleven sections, 287 at twenty-five — because a thick book gets
+merged and compressed instead of paid for chapter by chapter, so the response has to be concave, and a linear
+allowance over-budgets a thick book by roughly 60% in the one direction that produces bloat and collides with
+the cap. A square root is the plainest concavity consistent with that measurement and adds nothing to tune. The
+rest of the model is deliberately thin: `Frameworks & Structure` is 72–77% of a finished file and carries
+nearly all of its variance while everything else measured near-constant, so the formula is a constant plus a
+single term — a coefficient with nothing varying underneath it is a knob that can only be turned wrong.
+
+The cap answers a different question from the budget — not what this book supports, but what a reader will
+afford in one load — so it is applied to the estimate afterwards instead of folded into it, and a book over it
+comes back down by selection, never truncation (`SKILL.md` Step 7 states the cut order). What gets checked
+after writing is density rather than length, 50–70 tokens per retained named item, so a thin book that lands
+under budget with full coverage passes and a padded one that hit its number does not.
+
+Fitted against five hand-written reference files from a single library, all `study`/`text`: mean 4.9%, max
+8.7%. The `reference` and `technical` multipliers are back-solved from the midpoints of the table this replaces
+rather than fitted, since no data exists for those three cells — treat the structure as settled and the
+constants as provisional.
+
+Master `SKILL.md` is always loaded, so its budget scales with the library: `300 + 75 × N books + 350 × C
+capability blocks + 900 protocol + index (≤600)`, with a **hard stop at 4,500**. Past that the cross-book topic
+index spills to a sibling `topic-index.md`; the router table never spills, and it is front-loaded because
+compaction truncates from the end.
 
 ## Tools
 
