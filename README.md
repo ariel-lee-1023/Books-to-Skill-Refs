@@ -39,6 +39,25 @@ The master `SKILL.md` is kept small because it is *always loaded*; the reference
 
 The load-bearing disciplines: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
 
+## Folding into an existing, differently-shaped repo
+
+When the destination already has its own skill architecture — its own core-voice file, its own module
+template, its own supporting-file conventions — apply this tool's *discipline* (structure over summary,
+exact terminology, density, no verbatim copying, the coverage check) rather than forcing its *output
+shape* (router `SKILL.md` + one `reference-<slug>.md` per book). Follow the destination repo's own module
+template and its own extension protocol instead. See `SKILL.md` → "Folding into a pre-existing,
+differently-shaped skill repo" for the full rule.
+
+## Host-facing modules vs. human-facing documentation
+
+A library can grow two different kinds of file: modules a host agent trigger-loads into its own voice
+(`references/reference-<slug>.md`), and documentation written for the human maintaining the repo —
+sourcing, fidelity notes, a staleness ledger, known gaps, the extension protocol. The two must never share
+a directory. If a library needs the second kind, it lives in a sibling directory to the modules directory
+(for example `fidelity-ledger/` beside `references/`), never inside it — a host must never be able to load
+maintainer documentation as if it were skill content. See `SKILL.md` → "Host-facing modules vs.
+human-facing documentation" for the full rule and the one-question test.
+
 ## Requirements
 
 - A skill-aware agent (Claude Code, Copilot CLI, Amp, …)

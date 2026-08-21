@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — folding into existing repos, and a host-facing/human-facing directory-split rule
+
+Both gaps surfaced from the same real case: distilling books into a *pre-existing* skill repository that
+had its own architecture (a core-voice file, its own trigger-loaded module convention, and its own
+maintainer-facing sourcing/fidelity file) rather than a fresh `books-to-skill-refs`-shaped library.
+
+- **New "Folding into a pre-existing, differently-shaped skill repo" section (`SKILL.md`).** Modes 1–3
+  all assume the library either doesn't exist yet or was built by this tool. There was no guidance for
+  the common case where the user names an existing, differently-shaped repo and wants book-derived
+  content folded in by *that* repo's own template and extension protocol. The new section says explicitly
+  to carry over the extraction discipline (structure over summary, exact terminology, density, no verbatim
+  copying, the coverage check) while dropping this tool's own output contract, file-naming pattern, and
+  Fold-in Workflow mechanics — and to say so plainly in the summary given to the user, rather than let it
+  read as an incomplete or malfunctioning run.
+- **New "Host-facing modules vs. human-facing documentation" directory-split rule (`SKILL.md`, `README.md`).**
+  A library can accumulate two different kinds of file: modules a host trigger-loads into its own voice,
+  and documentation written for a human maintainer (sourcing, fidelity notes, a staleness ledger, known
+  gaps, the extension protocol) that no host should ever load automatically. These must never share a
+  directory — the maintainer-facing kind belongs in a sibling directory to the modules directory (e.g.
+  `fidelity-ledger/` beside `references/`), never inside it. The one-question test: would a host ever load
+  this file automatically because a trigger fired? This tool's own default one-file-per-book output
+  contract does not itself need a maintainer-facing file, so this rule is stated as guidance for libraries
+  that grow one (including fold-ins) rather than as a change to Step 6/8's directory creation.
+
 ### Changed — the reference-file and master budgets are computed, not looked up
 
 Step 7 was a 2x2 lookup table and Step 8 a formula missing a term. Measured against a five-book

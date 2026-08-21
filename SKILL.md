@@ -54,6 +54,70 @@ A folder design's `glossary.md` / `patterns.md` / `cheatsheet.md` are *cross-cut
 
 ---
 
+## Folding into a pre-existing, differently-shaped skill repo
+
+Modes 1–3 above assume the library either does not exist yet or was itself built by this tool. A fourth
+situation is common and different: the user points at an **existing skill repository that already has its
+own architecture** (its own core-voice file, its own module directory name and template, its own
+supporting-file conventions) and asks for book-derived content folded into *that* repo, not for a new
+`books-to-skill-refs`-shaped library. Recognize this when the destination is an existing repo whose root
+file is not this tool's own `SKILL.md` router shape, or the user names a target repo distinct from any
+library this tool produced.
+
+In that situation, apply this tool's **discipline**, not its **output shape**:
+
+- Carry over: structure-over-summary, the author's own terminology preserved exactly, density over
+  length, front-loading, never copying raw text verbatim, the per-book sliced-reading method, and the
+  coverage check (every named framework either lands in the module or is explicitly recorded as dropped).
+- Do **not** carry over: the router-`SKILL.md`-plus-`reference-<slug>.md`-per-book output contract, this
+  tool's own file-naming pattern, or its own Fold-in Workflow mechanics. The destination repo's own module
+  template, its own trigger-table convention, and its own extension protocol (if it documents one — read
+  it before writing anything) govern the shape of what you add.
+- Match the destination's own human-facing-vs-host-facing split, if it has one (see the next section). Do
+  not assume every existing repo separates these; check first.
+- Update the destination repo's own supporting files (its README, its changelog, its own provenance or
+  sourcing ledger if one exists) by that repo's own conventions, not this tool's. This tool's own
+  `CHANGELOG.md`/`README.md` update habits are specific to *this* repository and do not transfer.
+
+State explicitly, in the summary given to the user, that the destination repo's own architecture was
+followed rather than this tool's default output contract — this is a deliberate, load-bearing choice, not
+an omission, and should not read as if the tool malfunctioned or was applied incompletely.
+
+---
+
+## Host-facing modules vs. human-facing documentation (a directory-split discipline)
+
+This distinction applies whether you are building a fresh library with this tool's own output contract or
+folding into an existing repo per the section above — because both shapes can accumulate a second kind of
+file that is easy to place wrongly.
+
+A skill repository built by extracting book structure tends to grow two genuinely different kinds of file:
+
+1. **Modules a host agent loads automatically when a trigger fires**, and that can end up quoted or
+   paraphrased in the skill's own voice. This is what `references/reference-<slug>.md` is, in this tool's
+   own output contract, and what a destination repo's own trigger-loaded module directory is, whatever it
+   is named there.
+2. **Documentation written for the human maintaining the repository** — sourcing and attribution, fidelity
+   notes on what was deliberately included, excluded, or bounded, a staleness/decay ledger for domain
+   facts, known gaps, and the extension protocol for adding more. No host ever loads this automatically,
+   and nothing in it is meant to reach the skill's advising voice. Naming it `provenance.md` is a common
+   and reasonable convention, but the name matters less than where it lives.
+
+**These two kinds of file must not share a directory.** A maintainer-facing file sitting inside the same
+directory a host trigger-loads from is a standing risk that it gets pulled into context alongside the
+modules it documents, and a signal to any reader that the repo has not distinguished "what the advisor
+should know or do" from "where this came from and how to extend it." When this tool's own output contract
+grows this second kind of file — which its default one-file-per-book shape does not need, but a fold-in
+into an existing repo, or a library that later adds its own audit trail, might — place it in a sibling
+directory to the modules directory (for example `fidelity-ledger/` next to `references/`), never inside the
+modules directory itself.
+
+**The test:** would a host agent ever load this file automatically because a trigger fired? If yes, it is
+a module and belongs beside the other modules. If no — it exists only so a human can audit, source, or
+extend the skill — it belongs in the sibling human-facing directory, however that repository names it.
+
+---
+
 ## Output contract (the shape, explicit)
 
 ```
