@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — generated libraries now include their Agent Skills project wrapper
+
+- Full builds now emit `<library-name>/.agents/skills/<library-name>/SKILL.md` plus `references/`, so the outer project can be opened directly by a compatible agent host without copying or symlinking the skill.
+- The validator and budget tool now accept the outer generated project, discover exactly one nested skill, and require the inner directory name to match the `name` in `SKILL.md`.
+- Human-facing provenance or fidelity documentation, when present, belongs at the project root outside `.agents/`; only runtime material is placed in the nested skill.
+
 ### Added — folding into existing repos, and a host-facing/human-facing directory-split rule
 
 Both gaps surfaced from the same real case: distilling books into a *pre-existing* skill repository that
@@ -25,8 +31,8 @@ maintainer-facing sourcing/fidelity file) rather than a fresh `books-to-skill-re
   A library can accumulate two different kinds of file: modules a host trigger-loads into its own voice,
   and documentation written for a human maintainer (sourcing, fidelity notes, a staleness ledger, known
   gaps, the extension protocol) that no host should ever load automatically. These must never share a
-  directory — the maintainer-facing kind belongs in a sibling directory to the modules directory (e.g.
-  `fidelity-ledger/` beside `references/`), never inside it. The one-question test: would a host ever load
+  directory — the maintainer-facing kind belongs at the generated project root outside `.agents/` (e.g.
+  `<library-name>/fidelity-ledger/`), never inside the runtime skill. The one-question test: would a host ever load
   this file automatically because a trigger fired? This tool's own default one-file-per-book output
   contract does not itself need a maintainer-facing file, so this rule is stated as guidance for libraries
   that grow one (including fold-ins) rather than as a change to Step 6/8's directory creation.

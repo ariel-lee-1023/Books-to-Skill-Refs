@@ -14,15 +14,18 @@ An [agent skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) 
 Point it at several documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW) and it produces a knowledge base your agent can route across — not book reports.
 
 ```
-$SKILLS_HOME/<library-name>/
-├── SKILL.md                           # master: router + library index + cross-book topic index
-└── references/
-    ├── reference-<book1-slug>.md      # dense standalone distillation of book 1
-    ├── reference-<book2-slug>.md      # dense standalone distillation of book 2
-    └── reference-<bookN-slug>.md
+<output-root>/<library-name>/
+└── .agents/
+    └── skills/
+        └── <library-name>/            # matches SKILL.md frontmatter `name`
+            ├── SKILL.md               # master router + indexes
+            └── references/
+                ├── reference-<book1-slug>.md
+                ├── reference-<book2-slug>.md
+                └── reference-<bookN-slug>.md
 ```
 
-That is the standard [Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) layout: `SKILL.md` at the root — the only file a host loads automatically — with supporting files under `references/`, loaded on demand.
+The outer directory is a complete project that can be opened directly by a compatible agent host. The runtime skill is already in `.agents/skills/<library-name>/`, so no copying or symlink setup is required; its supporting files remain under `references/` and load on demand.
 
 **One file per book, and they are all siblings.** No `chapters/`, no per-book subfolders inside `references/`, no separate glossary/patterns/cheatsheet files.
 
@@ -35,7 +38,7 @@ The master `SKILL.md` is kept small because it is *always loaded*; the reference
 | Books per run | one | **N** |
 | Output per book | nested folder (`SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md`) | **one `references/reference-<slug>.md`** |
 | Shared file | that book's own `SKILL.md` | **one master `SKILL.md`** routing across all books |
-| Layout | one folder per book, nested inside | **`SKILL.md` + `references/`** — every book a sibling in one directory |
+| Layout | one folder per book, nested inside | **project wrapper + `.agents/skills/<library-name>/`** — every book remains a sibling under `references/` |
 
 The load-bearing disciplines: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
 
@@ -53,8 +56,8 @@ differently-shaped skill repo" for the full rule.
 A library can grow two different kinds of file: modules a host agent trigger-loads into its own voice
 (`references/reference-<slug>.md`), and documentation written for the human maintaining the repo —
 sourcing, fidelity notes, a staleness ledger, known gaps, the extension protocol. The two must never share
-a directory. If a library needs the second kind, it lives in a sibling directory to the modules directory
-(for example `fidelity-ledger/` beside `references/`), never inside it — a host must never be able to load
+a directory. If a library needs the second kind, it lives at the project root outside `.agents/`
+(for example `<library-name>/fidelity-ledger/`), never inside the runtime skill — a host must never be able to load
 maintainer documentation as if it were skill content. See `SKILL.md` → "Host-facing modules vs.
 human-facing documentation" for the full rule and the one-question test.
 
@@ -193,11 +196,11 @@ python tools/clean_slice.py full_text.txt --range 4,2823 --stats-only         # 
 
 # checking output
 python tools/reference_budget.py --sections 22               # what should this book cost?
-python tools/reference_budget.py ~/.claude/skills/my-library/ # is the library inside its budgets?
-python tools/validate_library.py ~/.claude/skills/my-library/ # contract satisfied?
-python tools/scan_generated_skill.py my-library --strict      # injected instructions?
+python tools/reference_budget.py my-library/ # is the wrapped project inside its budgets?
+python tools/validate_library.py my-library/ # .agents layout and content contract satisfied?
+python tools/scan_generated_skill.py my-library/.agents/skills/my-library --strict # injected instructions?
 python tools/validate_skill.py SKILL.md --lens all            # valid on every host?
-python -m unittest discover -s tests -v                       # 205 tests, no network
+python -m unittest discover -s tests -v                       # 223 tests, no network
 ```
 
 **`build_corpus.py`** exists because `extract.py` emits one `SOURCE:` fence per *file*, so a book that arrives as
@@ -222,7 +225,7 @@ of magnitude — a 1,080-character Chinese passage estimates as **1** token agai
 silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai source.
 
 **`validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
-generated library: `SKILL.md` sits at the root with every reference file inside `references/`, every reference file
+generated project: exactly one `.agents/skills/<name>/SKILL.md` exists, its directory matches frontmatter `name`, every reference file sits inside that skill's `references/`, every reference file
 is reachable from the router, no router link dangles, the topic index honours the ≥2-book rule, the master is under
 its hard stop, and each reference file is inside its cap for its detected type and declared depth. Step 8.5 runs it
 before reporting success.

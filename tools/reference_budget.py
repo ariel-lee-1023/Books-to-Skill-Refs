@@ -50,8 +50,8 @@ Usage
 -----
     python3 tools/reference_budget.py --sections 22 --depth study --type text
     python3 tools/reference_budget.py --master --books 5 --capabilities 4 --index-entries 14
-    python3 tools/reference_budget.py path/to/<library-name>/          # measure a library
-    python3 tools/reference_budget.py path/to/<library-name>/ --strict # and fail CI on over-budget
+    python3 tools/reference_budget.py path/to/<library-project>/          # measure nested skill
+    python3 tools/reference_budget.py path/to/<library-project>/ --strict # and fail CI on over-budget
 
 Exit codes: 0 clean; 1 a file is over its hard cap, or over budget under --strict.
 """
@@ -140,8 +140,23 @@ def detect_type(text: str) -> str:
     return "technical" if len(TECHNICAL_RE.findall(text)) >= 6 else "text"
 
 
-def measure_library(root: Path):
+def find_skill_root(project: Path) -> Path | None:
+    """Resolve the one skill under a generated project's .agents/skills/."""
+    skills_home = project / ".agents" / "skills"
+    if not skills_home.is_dir():
+        return None
+    candidates = sorted(
+        child for child in skills_home.iterdir()
+        if child.is_dir() and (child / "SKILL.md").is_file()
+    )
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def measure_library(project: Path):
     """Return (rows, master_row). Rows are dicts; nothing is printed here."""
+    root = find_skill_root(project)
+    if root is None:
+        return [], None
     refs = sorted((root / "references").glob("reference-*.md"))
     rows = []
     for path in refs:
@@ -177,10 +192,11 @@ def measure_library(root: Path):
     return rows, master
 
 
-def _report(root: Path, strict: bool) -> int:
-    rows, master = measure_library(root)
+def _report(project: Path, strict: bool) -> int:
+    rows, master = measure_library(project)
     if not rows:
-        print("no references/reference-*.md found under %s" % root, file=sys.stderr)
+        print("no .agents/skills/<name>/references/reference-*.md found under %s" % project,
+              file=sys.stderr)
         return 1
 
     failures, warnings = [], []

@@ -1,6 +1,7 @@
 """Tests for tools/validate_library.py — the SKILL.md contracts as assertions."""
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from validate_library import (  # noqa: E402
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 GOOD = FIXTURES / "good-library"
 BAD = FIXTURES / "bad-library"
+GOOD_SKILL = GOOD / ".agents" / "skills" / "test-persuasion-library"
 
 
 def messages(rep):
@@ -40,13 +42,15 @@ class TestGoodLibrary(unittest.TestCase):
         for name, f in self.rep.facts["references"].items():
             self.assertLessEqual(f["tokens"], f["cap"], name)
 
-    def test_reference_files_live_under_references(self):
-        # The Agent Skills convention: SKILL.md at the root, supporting files
-        # in references/. A library laid out any other way must not validate.
-        self.assertTrue((GOOD / "SKILL.md").is_file())
-        self.assertTrue((GOOD / "references").is_dir())
+    def test_project_wraps_one_discoverable_skill(self):
         self.assertEqual(
-            sorted(p.name for p in (GOOD / "references").glob("reference-*.md")),
+            self.rep.facts["skill_root"],
+            ".agents/skills/test-persuasion-library",
+        )
+        self.assertTrue((GOOD_SKILL / "SKILL.md").is_file())
+        self.assertTrue((GOOD_SKILL / "references").is_dir())
+        self.assertEqual(
+            sorted(p.name for p in (GOOD_SKILL / "references").glob("reference-*.md")),
             ["reference-carnegie-persuasion.md", "reference-cialdini-influence.md"],
         )
 
@@ -68,11 +72,14 @@ class TestBadLibrary(unittest.TestCase):
         self.assertIn("only subdirectory", self.blob)
         self.assertIn("chapters", self.blob)
 
-    def test_rejects_a_reference_file_left_at_the_library_root(self):
-        self.assertIn("reference-stray-book.md sits at the library root", self.blob)
+    def test_rejects_a_reference_file_left_at_the_skill_root(self):
+        self.assertIn("reference-stray-book.md sits at the skill root", self.blob)
 
     def test_rejects_invalid_name_slug(self):
         self.assertIn("Bad_Library", self.blob)
+
+    def test_rejects_directory_name_mismatch(self):
+        self.assertIn("must match its skill directory name `bad-library`", self.blob)
 
     def test_rejects_short_description(self):
         self.assertIn("description", self.blob)
@@ -134,6 +141,13 @@ class TestMissingLibrary(unittest.TestCase):
     def test_nonexistent_directory_errors(self):
         rep = validate(FIXTURES / "does-not-exist")
         self.assertTrue(rep.errors)
+
+    def test_legacy_root_level_skill_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "SKILL.md").write_text("---\nname: legacy\n---\n", encoding="utf-8")
+            rep = validate(root)
+            self.assertIn("legacy root-level SKILL.md", messages(rep))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ---
 name: books-to-skill-refs
-description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a single Agent Skill: one master SKILL.md that indexes and routes across all sources, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a shared, cross-referenced knowledge base rather than a per-book folder skill."
+description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a directly usable Agent Skills project: .agents/skills/<library-name>/ contains one master SKILL.md that indexes and routes across all sources, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a shared, cross-referenced knowledge base rather than a per-book folder skill."
 ---
 
 <!--
@@ -33,7 +33,7 @@ The output shape is the point, so state it plainly:
 | Books per run | one | **N** |
 | Output per book | a nested folder: `SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md` | **one file:** `references/reference-<book-slug>.md` |
 | Shared file | that book's `SKILL.md` indexes its own chapters | **one master `SKILL.md`** indexes/routes across all books |
-| Directory | one folder per book, nested inside | **the Agent Skills convention:** `SKILL.md` at the root, every reference file a sibling inside `references/` |
+| Directory | one folder per book, nested inside | **a directly discoverable project:** `.agents/skills/<library-name>/SKILL.md`, with every reference file inside that skill's `references/` |
 | Chapters split into `chapters/*.md` | yes | **no** — folded into the one reference file |
 | `glossary` / `patterns` / `cheatsheet` as separate files | yes | **no** — see "What survives the collapse" |
 
@@ -108,9 +108,9 @@ directory a host trigger-loads from is a standing risk that it gets pulled into 
 modules it documents, and a signal to any reader that the repo has not distinguished "what the advisor
 should know or do" from "where this came from and how to extend it." When this tool's own output contract
 grows this second kind of file — which its default one-file-per-book shape does not need, but a fold-in
-into an existing repo, or a library that later adds its own audit trail, might — place it in a sibling
-directory to the modules directory (for example `fidelity-ledger/` next to `references/`), never inside the
-modules directory itself.
+into an existing repo, or a library that later adds its own audit trail, might — place it at the generated
+project root, outside `.agents/` (for example `<library-name>/fidelity-ledger/`), never inside the runtime
+skill or its `references/` directory.
 
 **The test:** would a host agent ever load this file automatically because a trigger fired? If yes, it is
 a module and belongs beside the other modules. If no — it exists only so a human can audit, source, or
@@ -121,16 +121,19 @@ extend the skill — it belongs in the sibling human-facing directory, however t
 ## Output contract (the shape, explicit)
 
 ```
-$SKILLS_HOME/<library-name>/
-├── SKILL.md                           # master: router + library index + cross-book topic index
-└── references/
-    ├── reference-<book1-slug>.md      # dense standalone distillation of book 1
-    ├── reference-<book2-slug>.md      # dense standalone distillation of book 2
-    ├── reference-<bookN-slug>.md
-    └── topic-index.md                 # ONLY if the master overflows its budget (Step 8 valve)
+<output-root>/<library-name>/
+└── .agents/
+    └── skills/
+        └── <library-name>/            # must match SKILL.md frontmatter `name`
+            ├── SKILL.md               # master router + indexes
+            └── references/
+                ├── reference-<book1-slug>.md
+                ├── reference-<book2-slug>.md
+                ├── reference-<bookN-slug>.md
+                └── topic-index.md     # ONLY if Step 8's overflow valve fires
 ```
 
-This is the **Agent Skills convention**: `SKILL.md` at the root — the only file a host loads automatically — and every supporting file under `references/`, loaded on demand. Hosts, docs and tooling all expect that shape, so a library that invents its own is harder to install and harder to read.
+The outer directory is a complete project that can be opened directly by a compatible agent host; no copying or symlink setup is required. The inner `.agents/skills/<library-name>/` directory is the skill root: `SKILL.md` is the only file loaded automatically, while `references/` loads on demand.
 
 **One reference file per book, and they are all siblings.** No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book subfolders inside `references/`. The nesting this design rejects is nesting *within* a book's material — not the one conventional directory that hosts expect supporting files to live in.
 
@@ -140,15 +143,15 @@ This is the **Agent Skills convention**: `SKILL.md` at the root — the only fil
 
 1. **Full build (default)** — user gives several source paths/dirs/globs. Run Steps 0–9.
 2. **Analyze only** — user says "analyze"/"just extract"/"review first". Run Steps 0–3 per book, emit an extraction report, stop. Write nothing.
-3. **Add a book (fold-in)** — user points at a new source and an existing library dir (or a slug that already exists in `SKILLS_HOME`). Extract the new source, write **one new `references/reference-<slug>.md`**, and re-index the master `SKILL.md`. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
+3. **Add a book (fold-in)** — user points at a new source and an existing generated project containing `.agents/skills/<library-name>/SKILL.md`. Extract the new source, write **one new `references/reference-<slug>.md`** inside that skill, and re-index its master `SKILL.md`. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
 
 ---
 
 ## Skill locations
 
-Prefer these roots when finding the extractor or writing the library (probe in order):
+Prefer these roots when finding this extractor metatool (probe in order):
 `~/.copilot/skills/` → `~/.agents/skills/` → `~/.claude/skills/` → `.github/skills/` → `.claude/skills/` → `.agents/skills/` → `~/.config/agents/skills/` → `~/.config/amp/skills/`.
-When more than one valid root exists, ask the user once and remember it for the session — do not silently default.
+These are metatool installation locations, not generated-output destinations. Generated libraries always use the project wrapper in the Output contract.
 
 ---
 
@@ -158,7 +161,7 @@ If no arguments are provided, stop and respond:
 > "books-to-skill-refs requires one or more supported document paths, folders, or globs. Usage: `books-to-skill-refs <path>... [library-name-slug]`"
 
 - Parse args into `INPUT_PATHS` and an optional trailing `LIBRARY_NAME` slug (lowercase-hyphen token that is not an existing file/glob).
-- If any input path is an existing library dir (one containing `SKILL.md` and `references/reference-*.md`), or `LIBRARY_NAME` matches an existing library slug, flag this as **Add a book (Mode 3)**.
+- If any input path is an existing generated project (one containing `.agents/skills/<name>/SKILL.md` and `.agents/skills/<name>/references/reference-*.md`), flag this as **Add a book (Mode 3)**.
 
 ---
 
@@ -446,10 +449,10 @@ Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Any
 
 - **`LIBRARY_NAME`**: use the provided slug, else propose two and let the user pick — a theme slug
   (`legal-ai-foundations`) or a concatenation of authors/topics. Must be a valid slug (see Quality Rules).
-- **`SKILLS_HOME`**: pick the destination root by the host the user is in (Copilot CLI → `~/.copilot/skills`;
-  Amp → `~/.agents/skills`/`~/.config/...`; Claude Code → `~/.claude/skills`). If exactly one candidate root
-  exists, use it; if none, ask; if the user asked for project-local, use the project row. If `<library-name>/`
-  already exists, offer Add-a-book (Mode 3), Overwrite, or Rename.
+- **`OUTPUT_ROOT`**: use the output directory requested by the user or provided by the host. Define
+  `PROJECT_ROOT="$OUTPUT_ROOT/<library-name>"` and
+  `SKILL_ROOT="$PROJECT_ROOT/.agents/skills/<library-name>"`. If `PROJECT_ROOT` already exists, offer
+  Add-a-book (Mode 3), Overwrite, or Rename. Never emit a bare skill folder as the top-level deliverable.
 - **Per-book slug** (for each source): `<author-lastname>-<core-concept>` if the book has a strong
   methodological identity, else a title slug. File path is `references/reference-<book-slug>.md`.
   **On collision, disambiguate by meaning, not by a number.** Two books on the same concept →
@@ -463,16 +466,16 @@ Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Any
 ## Step 6 — Create the directory
 
 ```bash
-mkdir -p "$SKILLS_HOME/<library-name>/references"   # SKILL.md at the root, references/ beside it
+mkdir -p "$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>/references"
 ```
 
-`references/` is the only subdirectory. No `chapters/`, no per-book folders inside it.
+Inside the runtime skill root, `references/` is the only subdirectory. No `chapters/`, no per-book folders inside it. The inner skill directory name must equal the generated `SKILL.md` frontmatter `name`.
 
 ---
 
 ## Step 7 — Generate one reference file per book (the core loop)
 
-**For each source**, write a single dense `$SKILLS_HOME/<library-name>/references/reference-<book-slug>.md`. This one
+**For each source**, write a single dense `$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>/references/reference-<book-slug>.md`. This one
 file absorbs what a folder design spreads across `chapters/` + glossary + patterns + cheatsheet — compressed, because
 it's now one file, not a folder.
 
@@ -597,7 +600,7 @@ compactly; never copy long raw passages. Reference-depth omits worked examples e
 
 ## Step 8 — Generate the master SKILL.md (router across all books)
 
-Write `$SKILLS_HOME/<library-name>/SKILL.md` **once, at the end**. It plays the role a single-book SKILL.md plays,
+Write `$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>/SKILL.md` **once, at the end**. It plays the role a single-book SKILL.md plays,
 but it indexes N reference files instead of one chapter set. **It is a router, not a knowledge dump** — the knowledge
 lives in the reference files (loaded on demand). Keep it small; it is always loaded and grows with the library.
 
@@ -695,11 +698,12 @@ Every budget and shape rule above is checkable. Run the validator before reporti
 **do not report a library you have not verified.**
 
 ```bash
-"$PYTHON_BIN" "$TOOLS/validate_library.py" "$SKILLS_HOME/<library-name>"
+"$PYTHON_BIN" "$TOOLS/validate_library.py" "$OUTPUT_ROOT/<library-name>"
 ```
 
-It checks what Steps 5–8 promise: `SKILL.md` sits at the root with every reference file inside `references/`
-(and nothing else nested), every `reference-*.md` is reachable from the router,
+It checks what Steps 5–8 promise: the project contains exactly one `.agents/skills/<name>/SKILL.md`, the inner
+directory matches frontmatter `name`, every reference file sits inside that skill's `references/`, and every
+`reference-*.md` is reachable from the router,
 no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `300 + 75×N + 350×C + 900
 + index` and under the 4,500 hard stop, and each reference file is inside its computed Step 7 budget (±10%) and
 its cap for the detected type and declared depth. Errors exit non-zero; warnings do not.
@@ -711,7 +715,7 @@ Step 9 report instead of implying the library was verified.
 **Then scan for injected instructions:**
 
 ```bash
-"$PYTHON_BIN" "$TOOLS/scan_generated_skill.py" "$SKILLS_HOME/<library-name>"
+"$PYTHON_BIN" "$TOOLS/scan_generated_skill.py" "$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>"
 ```
 
 This skill reads documents it did not author and writes files a host agent later loads **as instructions**. That
@@ -741,12 +745,12 @@ PY
 
 Report:
 ```
-✅ Library created: $SKILLS_HOME/<library-name>/
+✅ Library project created: $OUTPUT_ROOT/<library-name>/
 
 📚 <N> books distilled:
-   SKILL.md                          — router + topic index (~X tok, always loaded)
-   references/reference-<slug1>.md   — <Title1>   (~X tok)
-   references/reference-<slug2>.md   — <Title2>   (~X tok)
+   .agents/skills/<library-name>/SKILL.md                        — router + topic index (~X tok, always loaded)
+   .agents/skills/<library-name>/references/reference-<slug1>.md — <Title1> (~X tok)
+   .agents/skills/<library-name>/references/reference-<slug2>.md — <Title2> (~X tok)
    ...
    ────────────────────────────────────────────
    Reference files load on demand — only the master is always in context.

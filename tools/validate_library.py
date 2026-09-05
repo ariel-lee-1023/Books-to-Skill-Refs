@@ -5,8 +5,9 @@ Why this exists
 ---------------
 The repository's CI validates *its own* SKILL.md. Nothing validated the thing
 the skill actually promises to produce: a library of one master router plus one
-reference file per book, laid out in the Agent Skills convention (`SKILL.md` at
-the root, supporting files under `references/`), inside stated token budgets.
+reference file per book, laid out as a directly discoverable Agent Skills
+project (`.agents/skills/<name>/SKILL.md`, with supporting files under that
+skill's `references/`), inside stated token budgets.
 This turns the "should" statements in SKILL.md into executable assertions.
 
 Usage
@@ -52,7 +53,7 @@ CAPABILITY_BLOCK = re.compile(r"^##\s+Capability\b", re.MULTILINE)
 
 REFERENCES_DIR = "references"      # Agent Skills convention: supporting files live here
 REFERENCE_NAME = re.compile(r"\Areference-[a-z0-9]+(-[a-z0-9]+)*\.md\Z")
-ALLOWED_ROOT_FILES = re.compile(r"\ASKILL\.md\Z")
+ALLOWED_SKILL_FILES = re.compile(r"\ASKILL\.md\Z")
 ALLOWED_REFERENCE_FILES = re.compile(r"\A(topic-index\.md|reference-[a-z0-9]+(-[a-z0-9]+)*\.md)\Z")
 SLUG = re.compile(r"\A[a-z0-9]+(-[a-z0-9]+)*\Z")
 RESERVED_SLUG_WORDS = ("claude", "anthropic")
@@ -118,40 +119,66 @@ def declared_depth(text: str, fallback: str) -> str:
 
 # --- checks ---------------------------------------------------------------
 
-def check_layout(lib: Path, rep: Report) -> list[Path]:
-    """Agent Skills contract: SKILL.md at the root, reference-*.md under references/.
+def find_skill_root(project: Path, rep: Report) -> Path | None:
+    """Find the one generated skill at .agents/skills/<name>/ inside project."""
+    skills_home = project / ".agents" / "skills"
+    if not skills_home.is_dir():
+        if (project / "SKILL.md").is_file():
+            rep.error("legacy root-level SKILL.md found — generated output must place the skill "
+                      "under .agents/skills/<name>/")
+        else:
+            rep.error(".agents/skills/ is missing — the project is not directly discoverable "
+                      "as an Agent Skills project")
+        return None
+
+    candidates = sorted(
+        child for child in skills_home.iterdir()
+        if child.is_dir() and (child / "SKILL.md").is_file()
+    )
+    if len(candidates) != 1:
+        rep.error(".agents/skills/ must contain exactly one generated skill directory with "
+                  f"SKILL.md; found {len(candidates)}")
+        return None
+
+    skill_root = candidates[0]
+    rep.facts["skill_root"] = skill_root.relative_to(project).as_posix()
+    return skill_root
+
+
+def check_layout(skill_root: Path, rep: Report) -> list[Path]:
+    """Skill contract: SKILL.md at skill root, reference-*.md under references/.
 
     One reference file per book, all of them siblings inside `references/` — no
     per-book folders and no `chapters/`. The nesting the design rejects is
     nesting *within* a book's material, not the single conventional directory
     that hosts expect supporting files to live in.
     """
-    refs_dir = lib / REFERENCES_DIR
+    refs_dir = skill_root / REFERENCES_DIR
 
-    for child in sorted(lib.iterdir()):
+    for child in sorted(skill_root.iterdir()):
         if child.is_dir() and child.name != REFERENCES_DIR:
-            rep.error(f"{child.name}/ — the only subdirectory a library may have is "
+            rep.error(f"{child.name}/ — the only subdirectory the generated skill may have is "
                       f"{REFERENCES_DIR}/ (no chapters/, no per-book folders)")
 
-    root_files = sorted(p for p in lib.iterdir() if p.is_file())
+    root_files = sorted(p for p in skill_root.iterdir() if p.is_file())
     for f in root_files:
-        if ALLOWED_ROOT_FILES.match(f.name):
+        if ALLOWED_SKILL_FILES.match(f.name):
             continue
         if REFERENCE_NAME.match(f.name):
-            rep.error(f"{f.name} sits at the library root — reference files belong in "
+            rep.error(f"{f.name} sits at the skill root — reference files belong in "
                       f"{REFERENCES_DIR}/ (`mkdir -p {REFERENCES_DIR} && "
                       f"git mv {f.name} {REFERENCES_DIR}/`), and the router link "
                       f"needs the same prefix")
         else:
-            rep.warn(f"{f.name} — unexpected file at the library root; the contract is "
+            rep.warn(f"{f.name} — unexpected file at the skill root; the contract is "
                      f"SKILL.md plus a {REFERENCES_DIR}/ directory")
 
-    if not (lib / "SKILL.md").exists():
+    if not (skill_root / "SKILL.md").exists():
         rep.error("SKILL.md is missing — the library has no master router")
 
     if not refs_dir.is_dir():
         rep.error(f"{REFERENCES_DIR}/ is missing — reference files live there, "
-                  f"beside SKILL.md at the root")
+                  f"beside SKILL.md inside the nested skill root")
         return []
 
     for child in sorted(refs_dir.iterdir()):
@@ -177,7 +204,7 @@ def check_layout(lib: Path, rep: Report) -> list[Path]:
     return refs
 
 
-def check_master_frontmatter(master_text: str, rep: Report) -> None:
+def check_master_frontmatter(master_text: str, rep: Report, expected_name: str) -> None:
     m = FRONTMATTER.match(master_text)
     if not m:
         rep.error("SKILL.md must open with a YAML frontmatter block delimited by ---")
@@ -193,6 +220,8 @@ def check_master_frontmatter(master_text: str, rep: Report) -> None:
             rep.error(f"`name: {slug}` must be lowercase letters, digits and hyphens only")
         if any(w in slug for w in RESERVED_SLUG_WORDS):
             rep.error(f"`name: {slug}` must not contain {' or '.join(RESERVED_SLUG_WORDS)}")
+        if slug != expected_name:
+            rep.error(f"`name: {slug}` must match its skill directory name `{expected_name}`")
 
     desc = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE | re.DOTALL)
     if not desc:
@@ -343,21 +372,25 @@ def check_reference(path: Path, master_depth: str, rep: Report) -> None:
                  f"biggest reason a study-depth file earns its budget")
 
 
-def validate(lib: Path) -> Report:
+def validate(project: Path) -> Report:
     rep = Report()
-    if not lib.is_dir():
-        rep.error(f"{lib} is not a directory")
+    if not project.is_dir():
+        rep.error(f"{project} is not a directory")
         return rep
 
-    refs = check_layout(lib, rep)
-    master = lib / "SKILL.md"
+    skill_root = find_skill_root(project, rep)
+    if skill_root is None:
+        return rep
+
+    refs = check_layout(skill_root, rep)
+    master = skill_root / "SKILL.md"
     if not master.exists():
         return rep
 
     master_text = master.read_text(encoding="utf-8")
-    check_master_frontmatter(master_text, rep)
-    check_router(master_text, lib, refs, rep)
-    check_topic_index(master_text, lib, refs, rep)
+    check_master_frontmatter(master_text, rep, skill_root.name)
+    check_router(master_text, skill_root, refs, rep)
+    check_topic_index(master_text, skill_root, refs, rep)
     check_master_budget(master_text, len(refs), rep.facts.get("topic_index_entries", 0), rep)
 
     master_depth = declared_depth(master_text, "study")
@@ -370,8 +403,8 @@ def validate(lib: Path) -> Report:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Validate a generated books-to-skill-refs library.")
-    ap.add_argument("library", type=Path, help="path to the library directory "
-                                               "(SKILL.md + references/)")
+    ap.add_argument("library", type=Path, help="path to the generated project directory "
+                                               "containing .agents/skills/<name>/")
     ap.add_argument("--json", action="store_true", dest="as_json")
     args = ap.parse_args(argv)
 
@@ -384,7 +417,8 @@ def main(argv: list[str] | None = None) -> int:
         refs = rep.facts.get("references", {})
         if refs:
             width = max(len(n) for n in refs)
-            print(f"Library: {args.library}  ({rep.facts.get('books', 0)} book(s))")
+            print(f"Library project: {args.library}  ({rep.facts.get('books', 0)} book(s))")
+            print(f"Skill root: {rep.facts.get('skill_root', 'not found')}")
             for name, f in sorted(refs.items()):
                 mark = "!" if f["tokens"] > f["cap"] else " "
                 print(f"  {mark} {name:<{width}}  {f['tokens']:>7,} / {f['cap']:>6,} tok"
