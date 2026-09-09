@@ -1,6 +1,6 @@
 ---
 name: books-to-skill-refs
-description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a directly usable Agent Skills project: .agents/skills/<library-name>/ contains one master SKILL.md that indexes and routes across all sources, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a shared, cross-referenced knowledge base rather than a per-book folder skill."
+description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a directly usable Agent Skills project: .agents/skills/<library-name>/ contains one expert SKILL.md that establishes how to reason, judge, and respond, with trigger-loaded source references, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a working domain expert grounded in a shared, cross-referenced knowledge base."
 ---
 
 <!--
@@ -15,9 +15,9 @@ Cross-agent notes (informational; ignored by host agents):
     shipped in this repository. No external skill is required (see Step 2).
 -->
 
-# Books-to-Skill&Refs (multi-book library, one skill)
+# Books-to-Skill&Refs (many books, one working expert)
 
-Distill several books at once into one shared, cross-referenced library — **not** a book report, and **not** one folder per book.
+Distill several books into one working expert: an always-loaded core that shapes its reasoning and judgment, supported by one on-demand reference file per book.
 
 ## What this is
 
@@ -32,7 +32,7 @@ The output shape is the point, so state it plainly:
 |---|---|---|
 | Books per run | one | **N** |
 | Output per book | a nested folder: `SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md` | **one file:** `references/reference-<book-slug>.md` |
-| Shared file | that book's `SKILL.md` indexes its own chapters | **one master `SKILL.md`** indexes/routes across all books |
+| Shared file | that book's `SKILL.md` indexes its own chapters | **one expert `SKILL.md`** establishes reasoning and judgment, then routes to source depth |
 | Directory | one folder per book, nested inside | **a directly discoverable project:** `.agents/skills/<library-name>/SKILL.md`, with every reference file inside that skill's `references/` |
 | Chapters split into `chapters/*.md` | yes | **no** — folded into the one reference file |
 | `glossary` / `patterns` / `cheatsheet` as separate files | yes | **no** — see "What survives the collapse" |
@@ -61,7 +61,7 @@ situation is common and different: the user points at an **existing skill reposi
 own architecture** (its own core-voice file, its own module directory name and template, its own
 supporting-file conventions) and asks for book-derived content folded into *that* repo, not for a new
 `books-to-skill-refs`-shaped library. Recognize this when the destination is an existing repo whose root
-file is not this tool's own `SKILL.md` router shape, or the user names a target repo distinct from any
+file is not this tool's generated project layout, or the user names a target repo distinct from any
 library this tool produced.
 
 In that situation, apply this tool's **discipline**, not its **output shape**:
@@ -69,7 +69,7 @@ In that situation, apply this tool's **discipline**, not its **output shape**:
 - Carry over: structure-over-summary, the author's own terminology preserved exactly, density over
   length, front-loading, never copying raw text verbatim, the per-book sliced-reading method, and the
   coverage check (every named framework either lands in the module or is explicitly recorded as dropped).
-- Do **not** carry over: the router-`SKILL.md`-plus-`reference-<slug>.md`-per-book output contract, this
+- Do **not** carry over: the expert-`SKILL.md`-plus-`reference-<slug>.md`-per-book output contract, this
   tool's own file-naming pattern, or its own Fold-in Workflow mechanics. The destination repo's own module
   template, its own trigger-table convention, and its own extension protocol (if it documents one — read
   it before writing anything) govern the shape of what you add.
@@ -125,12 +125,12 @@ extend the skill — it belongs in the sibling human-facing directory, however t
 └── .agents/
     └── skills/
         └── <library-name>/            # must match SKILL.md frontmatter `name`
-            ├── SKILL.md               # master router + indexes
+            ├── SKILL.md               # expert reasoning core + loading triggers
             └── references/
                 ├── reference-<book1-slug>.md
                 ├── reference-<book2-slug>.md
                 ├── reference-<bookN-slug>.md
-                └── topic-index.md     # ONLY if Step 8's overflow valve fires
+                └── topic-index.md     # optional, when a useful index exceeds the master budget
 ```
 
 The outer directory is a complete project that can be opened directly by a compatible agent host; no copying or symlink setup is required. The inner `.agents/skills/<library-name>/` directory is the skill root: `SKILL.md` is the only file loaded automatically, while `references/` loads on demand.
@@ -143,7 +143,7 @@ The outer directory is a complete project that can be opened directly by a compa
 
 1. **Full build (default)** — user gives several source paths/dirs/globs. Run Steps 0–9.
 2. **Analyze only** — user says "analyze"/"just extract"/"review first". Run Steps 0–3 per book, emit an extraction report, stop. Write nothing.
-3. **Add a book (fold-in)** — user points at a new source and an existing generated project containing `.agents/skills/<library-name>/SKILL.md`. Extract the new source, write **one new `references/reference-<slug>.md`** inside that skill, and re-index its master `SKILL.md`. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
+3. **Add a book (fold-in)** — user points at a new source and an existing generated project containing `.agents/skills/<library-name>/SKILL.md`. Extract the new source, write **one new `references/reference-<slug>.md`** inside that skill, and update its master’s loading triggers and, when warranted, reasoning core. See the Fold-in Workflow. (No chapter renumbering exists here — a new book is just a new sibling file, which is why fold-in stays cheap.)
 
 ---
 
@@ -458,7 +458,7 @@ Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Any
   **On collision, disambiguate by meaning, not by a number.** Two books on the same concept →
   prefix each with its author (`reference-cialdini-influence.md` vs `reference-carnegie-influence.md`),
   not `influence` and `influence-2`. Append `-2` only if author+concept *still* collides (same author, same
-  concept). Whatever the slug, the router table's "Book (→ file)" column shows the full human-readable title,
+  concept). Whatever the slug, the loading table’s reference links show the full human-readable title,
   so the slug never has to carry the whole disambiguation load alone.
 
 ---
@@ -598,103 +598,117 @@ compactly; never copy long raw passages. Reference-depth omits worked examples e
 
 ---
 
-## Step 8 — Generate the master SKILL.md (router across all books)
+## Step 8 — Generate the expert core, then its loading triggers
 
-Write `$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>/SKILL.md` **once, at the end**. It plays the role a single-book SKILL.md plays,
-but it indexes N reference files instead of one chapter set. **It is a router, not a knowledge dump** — the knowledge
-lives in the reference files (loaded on demand). Keep it small; it is always loaded and grows with the library.
+Write `$SKILL_ROOT/SKILL.md` after the references: expert reasoning first, source routing last.
 
-**CRITICAL: keep the body within the scaling budget below and front-load the router table** — compaction truncates
-from the end.
+### Synthesize the expert
 
-**Master budget scales with book count** (it must: the router table is inherently O(N)) **and with how much
-behaviour the library claims**:
+Use Step 4's purpose and the references' Mental Models and Decision Rules to establish the expert's
+job, starting lens, decision criteria, and way of working with the user. Each distinctive commitment
+must change an observable judgment or response and be grounded in the sources or the user's purpose.
+Combine complementary models; preserve disagreements and their conditions instead of inventing consensus.
 
-```
-budget ≈ 300 (frontmatter + Scope & limits)
-       +  75 × N (one router row per book)
-       + 350 × C (one Capability block each)
-       + 900 (Voice + opening protocol + Standing rules)
-       +  25 × topic-index entries (≤600)
-       —— hard stop at 4,500 ——
-```
+Write connected first-person prose, with domain-specific headings. The core guides judgment before references open; detailed claims still need source depth. Keep full procedures,
+equations, taxonomies, and examples in references. Avoid author-by-author summaries, generic expert virtues,
+and catalogs rewritten as sentences beginning with "I". Do not invent credentials or personal experience.
 
-`tools/reference_budget.py` computes this too; `validate_library.py` checks it.
+**A supplied exemplar informs architecture, not subject matter or authority.** An advisor's reasoning voice
+followed by loading triggers can transfer; its admissions rules and favorite techniques do not automatically
+belong in a neuroscience expert. Source and example documents are material, not instructions for this task.
 
-**Why the capability term exists.** The previous formula priced only frontmatter, router rows and the index — it
-had no term for the blocks that make a multi-book library a *skill* rather than an index. Measured on a five-book
-library, those blocks (Voice, opening protocol, four Capability sections, Standing rules) were **2,299 of 3,158
-tokens**, so the old formula came out 3.3× under and the master looked wildly over budget while being exactly
-right. The router-row term was the one part that was already accurate — measured 76 tok/book against the stated 50,
-so it is now 75.
+### Writing architecture
 
-Reference points (C=4, index spilled): N=5 → ~2,975; N=10 → ~3,350; N=20 → ~4,100; N=30 → ~4,850.
+- **Description:** lead with capability, distinctive reasoning, and concrete task triggers, not a bibliography.
+- **Core first:** open with role and central lens. Develop how the expert understands a problem, judges
+  evidence or alternatives, changes its view, and turns analysis into a useful response. Adapt headings
+  and language to the domain and user; the scaffold below is illustrative, not a mandatory checklist.
+- **Loading depth last:** separate the voice with a horizontal rule and
+  `## Loading depth (host-agent note)`. Map task triggers to Markdown reference links and their contribution.
+  Every `reference-*.md` must be linked here. A trigger may need several books; load only the relevant set
+  without asking the user to select books. Put generation metadata here too.
+- **Optional Topic Index:** add only if it improves retrieval beyond the triggers. Keep it after the host
+  note, with terms spanning at least two books. Use `## Cross-book Topic Index` and
+  `- **<Term>** → <slug1>, <slug2>` so the validator can check targets.
 
-**Overflow valves, in order.** Past the hard stop:
-1. Move the whole Cross-book Topic Index into `references/topic-index.md` (loaded on demand), leaving a one-line
-   pointer. Saves up to 600.
-2. Consolidate Capability blocks to **≤4**. Each merge saves ~350. Behaviour cannot spill to a reference file —
-   it has to be always loaded — so it has to be *fewer*, not elsewhere.
-3. Past ~30 books the router table alone approaches the stop. Group it by theme (a subheading per theme, one row
-   per book inside) so reading it becomes "pick a theme, then a book"; and if that is not enough, **stop and ask
-   the user** whether to split into two libraries. This is the master's version of the reference file's part1/part2
-   edge — say so rather than silently truncating.
+References retain Step 7’s layout and provide source-attributed methods and boundaries in an expository register;
+the core owns the shared voice.
 
-The **router table never spills** — it is the only thing that lets an agent find a file at all.
-
-**Router only, never a knowledge dump.** A single-book skill can afford a ~2,000-token "core frameworks" block in
-its always-loaded file; with N books any such selection is arbitrary, and the cost is paid every session. The
-knowledge lives in the reference files.
+**Scaffold — replace placeholders with domain-specific prose:**
 
 ```markdown
 ---
 name: <library-name>
-description: "Knowledge library across <N> sources: <book1 short>, <book2 short>, …. Use to apply or cross-reference their frameworks on <3–6 shared topics>. Each book has its own references/reference-<slug>.md, loaded on demand."
+description: "<Role and tasks>. Reasons through <distinctive lens>. Use when <concrete situations>."
 ---
 
-<!-- argument-hint: [topic, framework name, or book] -->
+# <Expert role>
 
-# <Library Title>
+<I help with ...; my starting lens is ...; this changes how I judge ...>
+
+## How I read a question
+
+<The first distinction I make, why it matters, and how I proceed when a relevant fact is missing.>
+
+## What counts as a good answer
+
+<The domain's explanatory or decision standard; how I combine models and handle their disagreements.>
+
+## What changes my judgment
+
+<Evidence, boundary conditions, or tradeoffs that change my conclusion; a tempting error I check.>
+
+## How I work with you
+
+<How analysis becomes useful advice or explanation; how I scale depth and communicate disagreement or uncertainty.>
+
+---
+
+## Loading depth (host-agent note)
+
+Load references when their triggers apply. Answer the problem directly without displaying internal routing.
+
+| Trigger in the current task | Reference and the depth it supplies |
+|---|---|
+| <Concrete need> | [<Full Title>](references/reference-<slug>.md) — <contribution> |
+| <Comparison or integration task> | [<Title>](references/reference-<slug>.md) + [<Other Title>](references/reference-<slug2>.md) — <why both> |
+
+**Scope and currency:** <Coverage, important gaps, and source vintage. Distinguish durable frameworks
+from facts needing current verification. For gaps, use available authoritative sources or state what
+remains unverified. Distinguish source-backed claims from synthesis and external findings.>
+
 **Books**: <N> | **Generated**: <YYYY-MM-DD> | **Depth**: <reference|study>
-
-## How to use
-- No args → read this router, pick the right book.
-- "about <topic>" → use the Topic Index to open the reference file(s) that cover it.
-- "<book name>" → open that `references/reference-<slug>.md`.
-
-## Which book for which job  (front-loaded router — the most important section)
-| Book (→ file) | Reach for it when you need… | Its one big idea |
-|---|---|---|
-| <Title> → [references/reference-<slug>.md](references/reference-<slug>.md) | <the kind of question it answers> | <one line> |
-| … | | |
-
-## Cross-book Topic Index
-<!-- Alphabetical. Term/framework → which book(s) cover it.
-     RULE (bounds the size AND sharpens the purpose): list a term ONLY if it spans
-     ≥2 books. This index exists for cross-book routing; a term in just one book is
-     already reachable via that book's router row, so it stays in the reference file,
-     not here. CEILING ~40 entries / ~600 tokens. If it still overflows, keep the
-     terms shared by the MOST books and end with "(more in individual reference files)";
-     once the whole master passes the 4,500 hard stop, move this section wholesale into
-     references/topic-index.md and leave a one-line pointer in its place. -->
-- **<Term/Framework>** → <slug>, <slug2>
-- **<Term>** → <slug1>, <slug3>
-
-## Scope & limits
-Covers these sources only. For a topic no book here addresses, say so rather than inventing it.
 ```
 
-**The 4,500 hard stop is a ceiling, not a wish** — this body is always loaded, in every session. Near the limit,
-cut in this order: (1) trim the Topic Index per the ≥2-book rule above, (2) shorten the "one big idea" column to a
-phrase, (3) spill the Topic Index to `references/topic-index.md`, (4) consolidate Capability blocks to ≤4, (5) group
-the router table by theme, and past ~30 books ask the user about splitting the library. **Never cut the router
-table's file links** — those are load-bearing.
+### Budget and review
+
+Front-load the expert core. Keep the body under **4,500 tokens**; the planning budget is a target, not a floor:
+
+```
+300 (metadata/scope) + 75 × N (books) + 350 × C (core sections)
++ 900 (shared voice/interaction) + 25 × topic-index entries (≤600)
+```
+
+`C` counts nonempty level-two sections before `Loading depth`; the opening role paragraph uses the shared
+allowance. Natural headings work. Legacy masters retain their Capability-block count. Both budget tools
+share this rule; numeric allowances remain provisional for the new prose format.
+
+Near the ceiling, remove repetition and redundant lookup material. Keep an inline Topic Index within
+~40 entries / 600 tokens; spill a useful bulky index to `references/topic-index.md` with a Markdown link
+in the host note. Then merge overlapping core sections and shorten triggers. Preserve distinctive judgments
+and every direct reference link. If still too large, propose splitting by expert task rather than dropping content.
+
+Before Step 8.5, review against an ordinary request, incomplete or conflicting evidence, and a request outside
+the corpus. Does the core support domain-specific judgment, with sources combined where warranted? Can each
+request reach the right depth without book selection? Would the answer address the problem and distinguish
+evidence from synthesis or current retrieval? Rewrite vague or catalog-like passages. This is editorial
+acceptance: the structural validator cannot establish reasoning quality.
 
 ---
 
 ## Step 8.5 — Verify the library against the contract
 
-Every budget and shape rule above is checkable. Run the validator before reporting success —
+Run the structural validator after the editorial review and before reporting success —
 **do not report a library you have not verified.**
 
 ```bash
@@ -703,8 +717,8 @@ Every budget and shape rule above is checkable. Run the validator before reporti
 
 It checks what Steps 5–8 promise: the project contains exactly one `.agents/skills/<name>/SKILL.md`, the inner
 directory matches frontmatter `name`, every reference file sits inside that skill's `references/`, and every
-`reference-*.md` is reachable from the router,
-no router link dangles, the Topic Index honours the ≥2-book rule, the master is inside `300 + 75×N + 350×C + 900
+`reference-*.md` is reachable from the loading table,
+no loading link dangles, the Topic Index honours the ≥2-book rule, the master is inside `300 + 75×N + 350×C + 900
 + index` and under the 4,500 hard stop, and each reference file is inside its computed Step 7 budget (±10%) and
 its cap for the detected type and declared depth. Errors exit non-zero; warnings do not.
 
@@ -748,7 +762,7 @@ Report:
 ✅ Library project created: $OUTPUT_ROOT/<library-name>/
 
 📚 <N> books distilled:
-   .agents/skills/<library-name>/SKILL.md                        — router + topic index (~X tok, always loaded)
+   .agents/skills/<library-name>/SKILL.md                        — expert core + loading triggers (~X tok, always loaded)
    .agents/skills/<library-name>/references/reference-<slug1>.md — <Title1> (~X tok)
    .agents/skills/<library-name>/references/reference-<slug2>.md — <Title2> (~X tok)
    ...
@@ -756,8 +770,8 @@ Report:
    Reference files load on demand — only the master is always in context.
 
 Usage:
-   Ask for <library-name>              → router
-   Ask <library-name> about <topic>    → find the right book(s)
+   Ask <library-name> a question       → reason from the expert core
+   Ask <library-name> about <topic>    → answer with relevant source depth
    Ask <library-name> for <book>       → open that reference file
 ```
 
@@ -765,17 +779,17 @@ Usage:
 
 ## Fold-in Workflow (Mode 3 — add a book to an existing library)
 
-Far simpler than a chapter-renumbering merge — a new book is just a new sibling file.
-
 1. Run Steps 0–2 for the new source(s) only.
 2. Step 5 → derive a unique `references/reference-<slug>.md` (append `-2` on collision).
 3. Step 7 → write the **one new** reference file. Do not touch existing reference files.
-4. Re-index the master `SKILL.md`: add one row to "Which book for which job", merge the new book's terms into the
-   Cross-book Topic Index (append the new slug to existing terms it also covers — or into
-   `references/topic-index.md` if the library has already spilled it), bump the book count and date. Re-check the
-   master against its Step 8 budget:
-   `N` just grew by one, so this is where the overflow valve fires.
-5. Step 9 cleanup; report which book was added and which topic-index entries changed.
+4. Update the master’s `Loading depth` triggers to link the new book, and update scope, book count, and
+   date. Merge shared terms into the optional Topic Index only when useful. Review whether the new source
+   changes a core judgment, adds an important boundary, or conflicts with an existing stance. Edit the core
+   only where justified; do not append an author summary or rewrite its voice merely because N grew.
+   For an older generated router-only master, use Step 8 to synthesize an expert core from its existing
+   references and the new source, retaining all links and its established scope.
+5. Run Step 8’s editorial review and Step 8.5’s validation, then Step 9 cleanup. Report the book added,
+   loading-trigger changes, and any substantive change in the expert’s judgment.
 
 ---
 
@@ -788,5 +802,5 @@ Far simpler than a chapter-renumbering merge — a new book is just a new siblin
 5. **Reference files are on-demand, but load whole** — they cost nothing until opened, and then they cost *all* of
    themselves. That is why Step 7's cap is hard while its range is only a target. Keep the always-loaded master lean.
 6. **Never copy raw text** — always synthesize.
-7. **The cross-book Topic Index is the payoff** — it's how the agent routes a question to the right book. Get it right.
+7. **The expert core is the payoff** — synthesize how to reason and judge; keep source depth reachable through task triggers. A Topic Index is optional support.
 8. **Name slug rule** — `name:` must be lowercase letters/digits/hyphens only (no spaces, no `&`, not "claude"/"anthropic"). The pretty title lives in the `#` heading and description, not in `name:`.

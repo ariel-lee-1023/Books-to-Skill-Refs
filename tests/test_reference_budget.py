@@ -17,6 +17,7 @@ from reference_budget import (  # noqa: E402
     CAP_AT_SECTIONS,
     MASTER_HARD_STOP,
     TOLERANCE,
+    count_core_sections,
     master_budget,
     measure_library,
     reference_budget,
@@ -113,6 +114,18 @@ class TestMasterBudget(unittest.TestCase):
 
 
 class TestMeasureLibrary(unittest.TestCase):
+    def test_core_count_accepts_natural_headings_and_excludes_host_sections(self):
+        doc = ("# Expert\nOpening.\n## 我如何判断\nReasoning.\n"
+               "## Evidence\nCriteria.\n## Empty\n<!-- scaffold -->\n---\n"
+               "## Loading depth (host-agent note)\nTriggers.\n"
+               "## Cross-book Topic Index\nTerms.\n")
+        self.assertEqual(count_core_sections(doc), 2)
+
+    def test_legacy_capability_budget_is_preserved(self):
+        self.assertEqual(count_core_sections(
+            "## Voice\nProse.\n## Capability: Explain\nMethod.\n"
+            "## Which book for which job\nLinks.\n"), 1)
+
     def test_good_fixture_is_within_budget(self):
         rows, master = measure_library(FIXTURES / "good-library")
         self.assertTrue(rows)

@@ -130,10 +130,27 @@ def master_budget(n_books: int, n_capabilities: int = 0, index_entries: int = 0)
 SECTIONS_RE = re.compile(r"\*\*Sections\*\*:\s*~?([0-9]+)")
 DEPTH_RE = re.compile(r"\*\*Depth\*\*:\s*(study|reference)", re.I)
 CAPABILITY_RE = re.compile(r"^##\s+Capability\b", re.M)
+LOADING_DEPTH_RE = re.compile(r"^##[ \t]+Loading depth\b[^\n]*$", re.M | re.I)
+CORE_SECTION_RE = re.compile(r"^##[ \t]+[^\n]+\n(.*?)(?=^##[ \t]+|\Z)", re.M | re.S)
 INDEX_ENTRY_RE = re.compile(r"^\s*[-|]\s*\*\*(.+?)\*\*", re.M)
 FRAMEWORKS_RE = re.compile(r"^##\s+Frameworks\b.*?(?=^##\s|\Z)", re.M | re.S)
 # Mirrors validate_library.py: a technical book is detected from fenced code.
 TECHNICAL_RE = re.compile(r"^```(?!markdown\b)[a-z0-9+#.-]*\s*$", re.M)
+
+
+def count_core_sections(body: str) -> int:
+    """Budget prose core sections, retaining the legacy Capability convention.
+
+    The loading boundary makes natural or localized core headings possible;
+    host notes and optional indexes must not inflate the core allowance.
+    """
+    loading = LOADING_DEPTH_RE.search(body)
+    if loading is None:
+        return len(CAPABILITY_RE.findall(body))
+    core = body[:loading.start()]
+    return sum(bool(re.sub(r"<!--.*?-->|^\s*---\s*$", "", section,
+                           flags=re.S | re.M).strip())
+               for section in CORE_SECTION_RE.findall(core))
 
 
 def detect_type(text: str) -> str:
@@ -180,7 +197,7 @@ def measure_library(project: Path):
     master = None
     if master_path.exists():
         body = strip_frontmatter(master_path.read_text(encoding="utf-8"))
-        n_cap = len(CAPABILITY_RE.findall(body))
+        n_cap = count_core_sections(body)
         idx_part = re.split(r"^##\s+Cross-book", body, flags=re.M)
         entries = len(INDEX_ENTRY_RE.findall(idx_part[1])) if len(idx_part) > 1 else 0
         master = {
@@ -236,8 +253,8 @@ def _report(project: Path, strict: bool) -> int:
                  master["hard_stop"], d * 100))
         if master["tokens"] > master["hard_stop"]:
             failures.append("SKILL.md body ~%d tok is over the %d hard stop. Apply the Step 8 "
-                            "valves in order: spill the topic index, consolidate Capability "
-                            "blocks to <=4, then group the router table by theme."
+                            "valves: trim or spill the topic index, consolidate overlapping core "
+                            "sections, and shorten triggers while retaining every reference link."
                             % (master["tokens"], master["hard_stop"]))
         elif d > TOLERANCE:
             msg = ("SKILL.md body ~%d tok is %.0f%% over its %d budget."

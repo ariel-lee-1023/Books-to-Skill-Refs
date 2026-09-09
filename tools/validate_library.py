@@ -4,7 +4,7 @@
 Why this exists
 ---------------
 The repository's CI validates *its own* SKILL.md. Nothing validated the thing
-the skill actually promises to produce: a library of one master router plus one
+the skill actually promises to produce: an expert core with loading triggers plus one
 reference file per book, laid out as a directly discoverable Agent Skills
 project (`.agents/skills/<name>/SKILL.md`, with supporting files under that
 skill's `references/`), inside stated token budgets.
@@ -34,6 +34,7 @@ from count_tokens import estimate_tokens, strip_frontmatter  # noqa: E402
 from reference_budget import (  # noqa: E402
     MASTER_HARD_STOP,
     TOLERANCE,
+    count_core_sections,
     master_budget,
     reference_budget,
     reference_cap,
@@ -49,7 +50,6 @@ TOPIC_INDEX_MAX_ENTRIES = 40       # Step 8
 TOPIC_INDEX_MIN_BOOKS = 2          # the >=2-book inclusion rule
 
 SECTIONS_DECLARED = re.compile(r"\*\*Sections\*\*:\s*~?([0-9]+)")
-CAPABILITY_BLOCK = re.compile(r"^##\s+Capability\b", re.MULTILINE)
 
 REFERENCES_DIR = "references"      # Agent Skills convention: supporting files live here
 REFERENCE_NAME = re.compile(r"\Areference-[a-z0-9]+(-[a-z0-9]+)*\.md\Z")
@@ -233,7 +233,7 @@ def check_master_frontmatter(master_text: str, rep: Report, expected_name: str) 
 def check_master_budget(master_text: str, n_books: int, index_entries: int, rep: Report) -> None:
     body_text = strip_frontmatter(master_text)
     body = estimate_tokens(body_text)
-    n_caps = len(CAPABILITY_BLOCK.findall(body_text))
+    n_caps = count_core_sections(body_text)
     budget = master_budget(n_books, n_caps, index_entries)
     rep.facts["master_body_tokens"] = body
     rep.facts["master_budget"] = budget
@@ -242,8 +242,8 @@ def check_master_budget(master_text: str, n_books: int, index_entries: int, rep:
     if body > MASTER_HARD_STOP:
         rep.error(f"SKILL.md body is ~{body:,} tokens, over the {MASTER_HARD_STOP:,} hard stop. "
                   f"It is always loaded — apply the Step 8 valves in order: spill the Topic Index "
-                  f"to topic-index.md, consolidate Capability blocks to <=4, then group the router "
-                  f"table by theme.")
+                  f"to topic-index.md, consolidate overlapping core sections, then shorten "
+                  f"loading triggers while preserving all reference links.")
     elif body > round(budget * (1 + TOLERANCE)):
         rep.warn(f"SKILL.md body is ~{body:,} tokens, over its ~{budget:,} scaling budget "
                  f"(300 + 75x{n_books} + 350x{n_caps} + 900 + index) by more than the "
@@ -252,10 +252,25 @@ def check_master_budget(master_text: str, n_books: int, index_entries: int, rep:
 
 def check_router(master_text: str, lib: Path, refs: list[Path], rep: Report) -> None:
     sections = sections_of(master_text)
-    found = find_section(sections, "which book")
+    found = find_section(sections, "loading depth")
+    if found:
+        # Check the architectural minimum, not heading wording or prose quality.
+        body = strip_frontmatter(master_text)
+        boundary = next(m for m in SECTION.finditer(body)
+                        if "loading depth" in m.group(1).lower())
+        core = re.sub(r"<!--.*?-->|^#+[^\n]*$|^\s*---\s*$", "",
+                      body[:boundary.start()], flags=re.S | re.M).strip()
+        if not core:
+            rep.error("SKILL.md has no expert core before Loading depth — "
+                      "the loading table must follow the expert's reasoning stance")
+    else:
+        found = find_section(sections, "which book")
+        if found:
+            rep.warn("SKILL.md uses the legacy book-router format; new builds should put "
+                     "the expert core first and task triggers in Loading depth")
     if not found:
-        rep.error("SKILL.md has no router section ('Which book for which job') — "
-                  "without it nothing can find the reference files")
+        rep.error("SKILL.md has no Loading depth section (or legacy 'Which book for which job') "
+                  "— reference files need an explicit loading entry point")
         return
     _, router = found
 

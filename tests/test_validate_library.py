@@ -1,13 +1,14 @@
 """Tests for tools/validate_library.py — the SKILL.md contracts as assertions."""
 
 import sys
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
-from reference_budget import reference_cap  # noqa: E402
+from reference_budget import measure_library, reference_cap  # noqa: E402
 from validate_library import (  # noqa: E402
     detect_book_type,
     declared_depth,
@@ -98,6 +99,57 @@ class TestBadLibrary(unittest.TestCase):
 
     def test_reports_worked_example_at_reference_depth(self):
         self.assertIn("DEPTH=reference but contains a Worked Example", self.blob)
+
+
+class TestExpertMaster(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.project = Path(self.tmp.name) / "library"
+        shutil.copytree(GOOD, self.project)
+        self.master = (self.project / ".agents" / "skills" /
+                       "test-persuasion-library" / "SKILL.md")
+
+    def rewrite(self, old, new):
+        text = self.master.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        self.master.write_text(text.replace(old, new), encoding="utf-8")
+
+    def test_expert_fixture_passes_and_budget_tools_agree(self):
+        rep = validate(self.project)
+        _, measured = measure_library(self.project)
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertEqual(rep.warnings, [], messages(rep))
+        self.assertEqual(rep.facts["master_capabilities"], 3)
+        self.assertEqual(rep.facts["master_capabilities"], measured["capabilities"])
+        self.assertEqual(rep.facts["master_budget"], measured["budget"])
+
+    def test_trigger_links_still_detect_missing_and_orphan_sources(self):
+        self.rewrite("references/reference-cialdini-influence.md",
+                     "references/reference-missing.md")
+        rep = validate(self.project)
+        self.assertIn("reference-missing.md, which does not exist", messages(rep))
+        self.assertIn("reference-cialdini-influence.md is not linked", messages(rep))
+
+    def test_empty_core_is_rejected(self):
+        text = self.master.read_text(encoding="utf-8")
+        frontmatter = text[:text.index("\n---\n", 4) + 5]
+        loading = text[text.index("## Loading depth"):]
+        self.master.write_text(frontmatter + "\n# Expert\n\n" + loading, encoding="utf-8")
+        self.assertIn("no expert core before Loading depth", messages(validate(self.project)))
+
+    def test_legacy_router_remains_valid_with_migration_warning(self):
+        self.rewrite("## Loading depth (host-agent note)", "## Which book for which job")
+        rep = validate(self.project)
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertIn("legacy book-router format", messages(rep))
+
+    def test_optional_index_can_be_omitted(self):
+        text = self.master.read_text(encoding="utf-8").split("## Cross-book Topic Index")[0]
+        self.master.write_text(text, encoding="utf-8")
+        rep = validate(self.project)
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertEqual(rep.facts.get("topic_index_entries", 0), 0)
 
 
 class TestHelpers(unittest.TestCase):

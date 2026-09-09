@@ -9,15 +9,29 @@ SKILL.md ............ the prompt. Steps 0-9, budgets, output contract.
 scripts/extract.py .. entry point (runs without installation)
 bookrefs/ ........... the extraction runtime
 tools/ .............. acquisition, measurement, validation, security scanning
-tests/ .............. 205 stdlib unittest cases + fixtures
+tests/ .............. stdlib unittest cases + fixtures
 ```
 
 ## Why the layers are split this way
 
 The prompt states contracts; the tools enforce them. Keeping them apart is what
-makes "the master must stay under 3,500 tokens" a checkable claim rather than a
+makes "the master must stay under 4,500 tokens" a checkable claim rather than a
 hope. When a budget changes in `SKILL.md`, the matching constant in
 `tools/validate_library.py` changes with it, and a test fails if they drift.
+
+## Generated skill: expert core and source depth
+
+The agent synthesizes an always-loaded expert core after writing the per-book references. Its role,
+reasoning stance, judgment, and interaction style precede a `Loading depth (host-agent note)` section.
+That final section maps concrete task triggers to direct reference links; it can route one task to
+multiple books. Source-specific methods remain in `references/reference-<slug>.md`.
+
+The validator accepts this loading section and the older `Which book for which job` router, warning on
+the latter so existing libraries remain checkable. Both budget tools use the same core-section counter:
+nonempty level-two sections before the loading boundary, or legacy Capability sections for older files.
+The numeric budget and hard ceiling are unchanged. This structural check cannot judge the quality of
+an expert stance; the prompt separately requires review against realistic questions, uncertainty, and
+out-of-corpus requests.
 
 ## The runtime
 
@@ -87,7 +101,7 @@ the user's approval for a run costing orders of magnitude more.
 
 `bookrefs/tokens.py` therefore counts dense scripts at ~1 token per 1.5
 characters and everything else at ~1 per 4. It is an estimate (±15% against a
-real BPE tokenizer), which is well inside what round budgets like 3,500 need.
+real BPE tokenizer), which is well inside what round budgets like 4,500 need.
 
 ### The fence is a contract, and it is defended
 

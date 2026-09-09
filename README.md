@@ -1,6 +1,6 @@
 # books-to-skill-refs
 
-> Distill **many books at once** into one cross-referenced knowledge library: a single master `SKILL.md` router plus one standalone `references/reference-<book-slug>.md` per book.
+> Distill **many books at once** into one working domain expert: an expert reasoning core in `SKILL.md` plus one standalone `references/reference-<book-slug>.md` per book.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Agent Skill](https://img.shields.io/badge/type-agent%20skill-blue.svg)](#)
@@ -11,14 +11,14 @@ An [agent skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) 
 
 ## What it does
 
-Point it at several documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW) and it produces a knowledge base your agent can route across — not book reports.
+Point it at several documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW) and it produces an expert skill that reasons from the sources and loads their detailed methods when needed.
 
 ```
 <output-root>/<library-name>/
 └── .agents/
     └── skills/
         └── <library-name>/            # matches SKILL.md frontmatter `name`
-            ├── SKILL.md               # master router + indexes
+            ├── SKILL.md               # expert reasoning core + loading triggers
             └── references/
                 ├── reference-<book1-slug>.md
                 ├── reference-<book2-slug>.md
@@ -31,13 +31,50 @@ The outer directory is a complete project that can be opened directly by a compa
 
 The master `SKILL.md` is kept small because it is *always loaded*; the reference files cost nothing until a question actually needs one.
 
+## What the generated master reads like
+
+The master opens as an expert, in connected first-person prose: what problems it helps solve, what it
+notices first, how it decides between competing explanations or actions, what changes its judgment,
+and how it works with the user. These commitments come from the books and the user's purpose.
+The result should remain useful before a reference is opened, without claiming that the core contains
+all the evidence needed for a detailed answer.
+
+The shape is **expert voice first, loading instructions last**:
+
+```markdown
+# <Expert role>
+<I help with ...; my starting lens is ...>
+
+## How I read a question
+<Domain-specific distinctions and reasoning in prose.>
+
+## What changes my judgment
+<Evidence, competing models, decision rules, and boundaries.>
+
+## How I work with you
+<How analysis becomes a useful response.>
+
+---
+
+## Loading depth (host-agent note)
+| Trigger in the current task | Reference and the depth it supplies |
+|---|---|
+| <Concrete need> | [<Book title>](references/reference-<slug>.md) — <contribution> |
+```
+
+The core headings adapt to the domain; the `Loading depth` heading marks the host-facing boundary.
+References remain one file per book and supply structure, procedures, and evidence in an expository
+register. A cross-book Topic Index is optional. A supplied exemplar informs the architecture; its subject
+matter and instructions are not automatically inherited. Full writing criteria and the template are in
+[SKILL.md, Step 8](SKILL.md#step-8--generate-the-expert-core-then-its-loading-triggers).
+
 ## How it differs from a per-book folder skill
 
 | | per-book folder skill | books-to-skill-refs |
 |---|---|---|
 | Books per run | one | **N** |
 | Output per book | nested folder (`SKILL.md` + `chapters/` + `glossary.md` + `patterns.md` + `cheatsheet.md`) | **one `references/reference-<slug>.md`** |
-| Shared file | that book's own `SKILL.md` | **one master `SKILL.md`** routing across all books |
+| Shared file | that book's own `SKILL.md` | **one expert `SKILL.md`** with a shared reasoning stance and task-based loading triggers |
 | Layout | one folder per book, nested inside | **project wrapper + `.agents/skills/<library-name>/`** — every book remains a sibling under `references/` |
 
 The load-bearing disciplines: extract *structure* rather than summaries, preserve the author's exact framework names, density over length, never copy raw text, and read on demand (`grep`/`sed`/offset probes) instead of re-reading whole books.
@@ -47,7 +84,7 @@ The load-bearing disciplines: extract *structure* rather than summaries, preserv
 When the destination already has its own skill architecture — its own core-voice file, its own module
 template, its own supporting-file conventions — apply this tool's *discipline* (structure over summary,
 exact terminology, density, no verbatim copying, the coverage check) rather than forcing its *output
-shape* (router `SKILL.md` + one `reference-<slug>.md` per book). Follow the destination repo's own module
+shape* (expert `SKILL.md` + one `reference-<slug>.md` per book). Follow the destination repo's own module
 template and its own extension protocol instead. See `SKILL.md` → "Folding into a pre-existing,
 differently-shaped skill repo" for the full rule.
 
@@ -128,7 +165,7 @@ books-to-skill-refs ~/books/new-title.epub legal-ai-foundations
 |---|---|---|
 | **Full build** (default) | several source paths | Runs Steps 0–9, writes the whole library |
 | **Analyze only** | "analyze" / "just extract" / "review first" | Emits a per-book extraction report, writes nothing |
-| **Add a book** | a source + an existing library dir or slug | Writes one new reference file, re-indexes the master |
+| **Add a book** | a source + an existing library dir or slug | Adds a reference and loading triggers; revises core judgments when warranted |
 
 Before generating anything, the skill shows a per-book token and cost estimate and waits for confirmation.
 
@@ -180,9 +217,11 @@ rather than fitted, since no data exists for those three cells — treat the str
 constants as provisional.
 
 Master `SKILL.md` is always loaded, so its budget scales with the library: `300 + 75 × N books + 350 × C
-capability blocks + 900 protocol + index (≤600)`, with a **hard stop at 4,500**. Past that the cross-book topic
-index spills to a sibling `topic-index.md`; the router table never spills, and it is front-loaded because
-compaction truncates from the end.
+core reasoning sections + 900 shared voice/interaction + optional index (≤600)`, with a **hard stop at 4,500**. Past that the cross-book topic
+index can spill to `references/topic-index.md`. The expert core comes first; the loading table stays in
+the master after the core, with direct links to every source. Both tools count nonempty level-two sections
+before `Loading depth` for the core allowance; legacy Capability headings still work. The coefficients are
+provisional for this prose format, and the ceiling is unchanged.
 
 ## Tools
 
@@ -200,7 +239,7 @@ python tools/reference_budget.py my-library/ # is the wrapped project inside its
 python tools/validate_library.py my-library/ # .agents layout and content contract satisfied?
 python tools/scan_generated_skill.py my-library/.agents/skills/my-library --strict # injected instructions?
 python tools/validate_skill.py SKILL.md --lens all            # valid on every host?
-python -m unittest discover -s tests -v                       # 223 tests, no network
+python -m unittest discover -s tests -v                       # no network
 ```
 
 **`build_corpus.py`** exists because `extract.py` emits one `SOURCE:` fence per *file*, so a book that arrives as
@@ -226,9 +265,10 @@ silently defeat the pre-generation cost gate on any Chinese, Japanese, or Thai s
 
 **`validate_library.py`** turns the "should" statements in `SKILL.md` into executable assertions against a
 generated project: exactly one `.agents/skills/<name>/SKILL.md` exists, its directory matches frontmatter `name`, every reference file sits inside that skill's `references/`, every reference file
-is reachable from the router, no router link dangles, the topic index honours the ≥2-book rule, the master is under
-its hard stop, and each reference file is inside its cap for its detected type and declared depth. Step 8.5 runs it
-before reporting success.
+is reachable from the loading table, no loading link dangles, the topic index honours the ≥2-book rule, the master is under
+its hard stop, and each reference file is inside its cap for its detected type and declared depth. It accepts the new `Loading depth` table and warns on legacy book-router masters. It checks structure,
+not whether the expert makes good judgments; Step 8 requires an editorial review against realistic requests
+before Step 8.5 runs the tools.
 
 **`scan_generated_skill.py`** scans a generated library for instructions aimed at the reading agent. This skill
 reads documents it did not author and writes files a host agent later loads *as instructions* — a laundering path
@@ -247,7 +287,7 @@ Architecture and design rationale: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 4. Front-load the most important content
 5. Keep the always-loaded master lean; reference files load on demand
 6. Never copy raw text — synthesize
-7. The cross-book topic index is the payoff — get it right
+7. Synthesize an expert’s reasoning and judgment; route to source depth by task
 8. `name:` slugs are lowercase letters, digits, and hyphens only
 
 ## Strict mode

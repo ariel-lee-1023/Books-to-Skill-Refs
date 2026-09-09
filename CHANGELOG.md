@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — generated masters now lead with an expert reasoning core
+
+- Step 8 now synthesizes a domain-specific working voice and judgment from the sources, followed by a task-triggered `Loading depth` table. The bibliography-style opening and mandatory Topic Index are removed from the default template.
+- Per-book references retain their layout and extraction discipline. Fold-in updates loading triggers and revises the core only when the new source changes its judgment or boundaries.
+- The validator accepts expert masters, retains legacy-router validation with a migration warning, and preserves missing-link and orphan checks. Both budget tools count naturally titled core sections through one shared helper; numerical limits are unchanged.
+- Added a representative expert-format fixture and regression coverage for routing, legacy compatibility, empty cores, and budget agreement.
+
 ### Changed — generated libraries now include their Agent Skills project wrapper
 
 - Full builds now emit `<library-name>/.agents/skills/<library-name>/SKILL.md` plus `references/`, so the outer project can be opened directly by a compatible agent host without copying or symlinking the skill.
