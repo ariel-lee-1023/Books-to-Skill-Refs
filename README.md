@@ -11,6 +11,8 @@ An [agent skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) 
 
 ## What it does
 
+For future new deliverables built in this local project, the user's standing default is the [published repository profile](docs/PUBLISHED_REPOSITORIES.md): root `SKILL.md` and `references/`, project instructions, a complete README, license, a discoverable skill alias, and source/validation records in **`fidelity-ledger/`**. Stage new projects in `/Users/AI products/Git-deliverables/`, finish packaging and validation, move them to `/Users/AI products/GIthub/`, then commit and push. Explicit draft-only or no-publication requests override that publication default. See [AGENTS.md](AGENTS.md). Existing deliverables are not relocated; the general nested output contract below applies outside this local profile.
+
 Point it at several documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW) and it produces an expert skill that reasons from the sources and loads their detailed methods when needed.
 
 ```

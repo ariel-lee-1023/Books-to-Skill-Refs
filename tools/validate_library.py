@@ -145,7 +145,7 @@ def find_skill_root(project: Path, rep: Report) -> Path | None:
     return skill_root
 
 
-def check_layout(skill_root: Path, rep: Report) -> list[Path]:
+def check_layout(skill_root: Path, rep: Report, *, published_repo: bool = False) -> list[Path]:
     """Skill contract: SKILL.md at skill root, reference-*.md under references/.
 
     One reference file per book, all of them siblings inside `references/` — no
@@ -154,15 +154,19 @@ def check_layout(skill_root: Path, rep: Report) -> list[Path]:
     that hosts expect supporting files to live in.
     """
     refs_dir = skill_root / REFERENCES_DIR
+    project_dirs = {".agents", ".git", "fidelity-ledger"} if published_repo else set()
+    project_files = {"AGENTS.md", "README.md", "LICENSE", ".gitignore"} if published_repo else set()
 
     for child in sorted(skill_root.iterdir()):
+        if child.name in project_dirs:
+            continue
         if child.is_dir() and child.name != REFERENCES_DIR:
             rep.error(f"{child.name}/ — the only subdirectory the generated skill may have is "
                       f"{REFERENCES_DIR}/ (no chapters/, no per-book folders)")
 
     root_files = sorted(p for p in skill_root.iterdir() if p.is_file())
     for f in root_files:
-        if ALLOWED_SKILL_FILES.match(f.name):
+        if ALLOWED_SKILL_FILES.match(f.name) or f.name in project_files:
             continue
         if REFERENCE_NAME.match(f.name):
             rep.error(f"{f.name} sits at the skill root — reference files belong in "
@@ -387,8 +391,11 @@ def check_reference(path: Path, master_depth: str, rep: Report) -> None:
                  f"biggest reason a study-depth file earns its budget")
 
 
-def validate(project: Path) -> Report:
+def validate(project: Path, *, layout: str = "nested") -> Report:
     rep = Report()
+    if layout not in {"nested", "published-repo"}:
+        rep.error(f"unknown layout: {layout}")
+        return rep
     if not project.is_dir():
         rep.error(f"{project} is not a directory")
         return rep
@@ -397,13 +404,32 @@ def validate(project: Path) -> Report:
     if skill_root is None:
         return rep
 
-    refs = check_layout(skill_root, rep)
+    expected_name = skill_root.name
+    published_repo = layout == "published-repo"
+    if published_repo:
+        if not skill_root.is_symlink() or skill_root.resolve() != project.resolve():
+            rep.error("published-repo requires .agents/skills/<name> to be a symlink "
+                      "resolving to the project root")
+            return rep
+        rep.facts["discovery_entry"] = skill_root.relative_to(project).as_posix()
+        rep.facts["skill_root"] = "."
+        rep.facts["layout"] = layout
+        skill_root = project
+        for filename in ("AGENTS.md", "README.md", "LICENSE", ".gitignore"):
+            path = project / filename
+            if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+                rep.error(f"published-repo requires a nonempty {filename}")
+        ledger = project / "fidelity-ledger"
+        if not ledger.is_dir() or not any(p.is_file() for p in ledger.iterdir()):
+            rep.error("published-repo requires source and validation records in fidelity-ledger/")
+
+    refs = check_layout(skill_root, rep, published_repo=published_repo)
     master = skill_root / "SKILL.md"
     if not master.exists():
         return rep
 
     master_text = master.read_text(encoding="utf-8")
-    check_master_frontmatter(master_text, rep, skill_root.name)
+    check_master_frontmatter(master_text, rep, expected_name)
     check_router(master_text, skill_root, refs, rep)
     check_topic_index(master_text, skill_root, refs, rep)
     check_master_budget(master_text, len(refs), rep.facts.get("topic_index_entries", 0), rep)
@@ -421,9 +447,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("library", type=Path, help="path to the generated project directory "
                                                "containing .agents/skills/<name>/")
     ap.add_argument("--json", action="store_true", dest="as_json")
+    ap.add_argument("--layout", choices=("nested", "published-repo"), default="nested",
+                    help="published-repo validates canonical root content and a discovery symlink")
     args = ap.parse_args(argv)
 
-    rep = validate(args.library)
+    rep = validate(args.library, layout=args.layout)
 
     if args.as_json:
         print(json.dumps({"errors": rep.errors, "warnings": rep.warnings, "facts": rep.facts},

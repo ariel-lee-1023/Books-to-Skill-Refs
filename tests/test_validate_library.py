@@ -152,6 +152,61 @@ class TestExpertMaster(unittest.TestCase):
         self.assertEqual(rep.facts.get("topic_index_entries", 0), 0)
 
 
+class TestPublishedRepository(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.project = Path(self.tmp.name) / "published-library"
+        shutil.copytree(GOOD_SKILL, self.project)
+        self.alias = self.project / ".agents" / "skills" / GOOD_SKILL.name
+        self.alias.parent.mkdir(parents=True)
+        self.alias.symlink_to("../..", target_is_directory=True)
+        for name in ("README.md", "AGENTS.md", "LICENSE", ".gitignore"):
+            (self.project / name).write_text("Project documentation\n", encoding="utf-8")
+        ledger = self.project / "fidelity-ledger"
+        ledger.mkdir()
+        (ledger / "coverage.md").write_text("Source coverage\n", encoding="utf-8")
+
+    def test_validates_canonical_content_and_matches_budget_tool(self):
+        rep = validate(self.project, layout="published-repo")
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertEqual(rep.warnings, [], messages(rep))
+        self.assertEqual(rep.facts["skill_root"], ".")
+        self.assertEqual(rep.facts["books"], 2)
+        _, budget = measure_library(self.project)
+        self.assertEqual(rep.facts["master_body_tokens"], budget["tokens"])
+
+    def test_default_nested_contract_is_not_relaxed(self):
+        self.assertTrue(validate(self.project).errors)
+
+    def test_rejects_missing_packaging_and_wrong_ledger_name(self):
+        (self.project / "LICENSE").unlink()
+        (self.project / "fidelity-ledger").rename(self.project / "docs")
+        rep = validate(self.project, layout="published-repo")
+        self.assertIn("nonempty LICENSE", messages(rep))
+        self.assertIn("records in fidelity-ledger/", messages(rep))
+
+    def test_rejects_nested_copy_instead_of_root_alias(self):
+        self.alias.unlink()
+        shutil.copytree(GOOD_SKILL, self.alias)
+        self.assertIn("symlink resolving to the project root",
+                      messages(validate(self.project, layout="published-repo")))
+
+    def test_rejects_alias_to_another_repository(self):
+        self.alias.unlink()
+        self.alias.symlink_to(GOOD_SKILL.resolve(), target_is_directory=True)
+        self.assertIn("symlink resolving to the project root",
+                      messages(validate(self.project, layout="published-repo")))
+
+    def test_retains_missing_and_orphan_reference_checks(self):
+        master = self.project / "SKILL.md"
+        master.write_text(master.read_text().replace("references/reference-cialdini-influence.md",
+                                                     "references/reference-missing.md"))
+        rep = validate(self.project, layout="published-repo")
+        self.assertIn("reference-missing.md, which does not exist", messages(rep))
+        self.assertIn("reference-cialdini-influence.md is not linked", messages(rep))
+
+
 class TestHelpers(unittest.TestCase):
     def test_sections_of_splits_on_h2_only(self):
         doc = "# Title\n\n## One\na\n\n### Sub\nb\n\n## Two\nc\n"

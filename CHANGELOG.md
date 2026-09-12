@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — project-specific published repository profile
+
+- Recorded the user's standing build-and-publish preference in `AGENTS.md` and `docs/PUBLISHED_REPOSITORIES.md`, using Cognitive Neuroscience Expert as the layout exemplar.
+- Published builds use canonical root `SKILL.md` and `references/`, project guidance, README, license, a relative discovery symlink, and maintainer records named `fidelity-ledger/`.
+- Added explicit `--layout published-repo` validation while retaining the existing nested-library default and checks. Generated repositories under `outputs/` are ignored by the metatool's Git repository.
+
 ### Changed — generated masters now lead with an expert reasoning core
 
 - Step 8 now synthesizes a domain-specific working voice and judgment from the sources, followed by a task-triggered `Loading depth` table. The bibliography-style opening and mandatory Topic Index are removed from the default template.
