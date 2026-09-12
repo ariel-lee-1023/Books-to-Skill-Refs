@@ -33,10 +33,20 @@ def require(ok, message):
         raise ValueError(message)
 
 
-def validate(suite, results, root, suite_hash):
-    require(suite.get('version') == 1 and suite.get('defined_before_extraction') is True,
+def validate(suite, results, root, suite_hash, verified_run=None):
+    require(suite.get('version') in (1, 2) and suite.get('defined_before_extraction') is True,
             'freeze suite before extraction')
-    tasks = suite['tasks']
+    phase = results.get('phase', 'development')
+    require(phase in ('development', 'final'), 'unknown evaluation phase')
+    if suite['version'] == 2:
+        from evaluation_runner import validate_tasks
+        tasks = validate_tasks(suite, phase)
+    else:
+        require(phase == 'development', 'independent final acceptance needs a version 2 suite')
+        tasks = suite['tasks']
+    if phase == 'final':
+        require(verified_run is not None and results.get('runner_manifest') == verified_run,
+                'final acceptance requires verified prediction and grading runs')
     require(isinstance(tasks, list) and len(tasks) >= 4, 'need at least four representative tasks')
     require(len({t['id'] for t in tasks}) == len(tasks), 'duplicate task IDs')
     require(KINDS <= {t['kind'] for t in tasks}, 'cover apply, inapplicable, disagreement and unsupported')
@@ -50,9 +60,13 @@ def validate(suite, results, root, suite_hash):
     require(results['content_hash'] == runtime_hash(root), 'runtime hash stale')
     require(all(isinstance(results.get(k), str) and results[k].strip() for k in ('model', 'settings', 'baseline_prompt')), 'record shared model/settings and baseline role prompt')
     runs = results['runs']
-    require(set(runs) == set(CONDITIONS), 'need baseline, core and core_references conditions')
+    conditions = CONDITIONS + (('core_targeted',) if 'core_targeted' in runs else ())
+    require(set(runs) == set(conditions), 'need baseline, core and core_references conditions')
+    if 'core_targeted' in runs:
+        require(any(t.get('qualification_criteria') for t in tasks), 'targeted experiment needs explicit qualification criteria')
+        require(all(set(t.get('qualification_criteria', [])) <= set(t['criteria']) for t in tasks), 'unknown qualification criterion')
     totals, per_task = {}, {}
-    for condition in CONDITIONS:
+    for condition in conditions:
         rows = runs[condition]
         require(len(rows) == len(tasks) and len({r['id'] for r in rows}) == len(rows), 'exactly one result per task and condition required')
         by_id = {r['id']: r for r in rows}
@@ -66,7 +80,7 @@ def validate(suite, results, root, suite_hash):
             require(isinstance(r.get('rationale'), str) and r['rationale'].strip(), 'grading rationale required')
             loaded = r['references_loaded']
             require(isinstance(loaded, list) and all(isinstance(p, str) for p in loaded), 'record retrieval trace as relative paths')
-            if condition != 'core_references':
+            if condition not in ('core_references', 'core_targeted'):
                 require(not loaded, 'baseline/core condition cannot load references')
             else:
                 for path in loaded:
@@ -78,7 +92,18 @@ def validate(suite, results, root, suite_hash):
             per_task.setdefault(task['id'], {})[condition] = value
     full_pass = all(all(r['criteria'].values()) for r in runs['core_references'])
     regressions = [pid for pid, scores in per_task.items() if scores['core_references'] < scores['baseline']]
-    return {'passed': full_pass and not regressions, 'totals': totals, 'per_task': per_task,
+    experiment = {}
+    for condition in ('core_references', 'core_targeted'):
+        if condition not in runs:
+            continue
+        rows_by_id = {r['id']: r for r in runs[condition]}
+        usages = [u for r in runs[condition] for u in r.get('usage', [])]
+        provider_tokens = sum(u['total_tokens'] for u in usages) if usages and all(isinstance(u, dict) and type(u.get('total_tokens')) is int for u in usages) else None
+        experiment[condition] = {'score': totals[condition], 'all_criteria_passed': all(all(r['criteria'].values()) for r in runs[condition]), 'provider_total_tokens': provider_tokens,
+            'retrieved_characters': sum(e['characters'] for r in runs[condition] for e in r.get('retrievals', [])),
+            'missed_qualifications': sum(not rows_by_id[t['id']]['criteria'][key] for t in tasks for key in t.get('qualification_criteria', []))}
+    return {'phase': phase, 'independent_final': phase == 'final', 'retrieval_experiment': experiment,
+            'passed': full_pass and not regressions, 'totals': totals, 'per_task': per_task,
             'regressions': regressions,
             'core_gain': totals['core'] - totals['baseline'],
             'reference_gain': totals['core_references'] - totals['core'],
@@ -92,14 +117,27 @@ def main():
     ap.add_argument('--results', type=Path)
     ap.add_argument('--json', type=Path)
     ap.add_argument('--print-hash', action='store_true')
+    ap.add_argument('--prediction-run', type=Path)
+    ap.add_argument('--grade-run', type=Path)
     args = ap.parse_args()
     try:
         if args.print_hash:
             print(runtime_hash(args.skill_root))
             return 0
-        if not args.suite or not args.results:
-            ap.error('--suite and --results required')
-        report = validate(json.loads(args.suite.read_text()), json.loads(args.results.read_text()), args.skill_root, file_hash(args.suite))
+        verified = None
+        if args.prediction_run or args.grade_run:
+            if not args.prediction_run or not args.grade_run or args.results:
+                ap.error('supply both --prediction-run and --grade-run, without --results')
+            from evaluation_runner import export_books, verify
+            results = export_books(args.prediction_run, args.grade_run)
+            verified = verify(args.prediction_run)
+        else:
+            if not args.results:
+                ap.error('--results or verified runner paths required')
+            results = json.loads(args.results.read_text())
+        if not args.suite:
+            ap.error('--suite required')
+        report = validate(json.loads(args.suite.read_text()), results, args.skill_root, file_hash(args.suite), verified)
     except (ValueError, OSError, KeyError, TypeError, AttributeError) as exc:
         report = {'passed': False, 'error': str(exc)}
     if args.json:

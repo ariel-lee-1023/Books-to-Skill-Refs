@@ -449,7 +449,10 @@ as calibrated when it isn't. One indented quote in a prose book is not "technica
 
 Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Anything including 1/2/4 → `DEPTH=study` (worked detail + reasoning). `DEPTH` applies library-wide unless the user asks otherwise. In Mode 2/3, default `DEPTH=study`.
 
-**Behavioral acceptance:** before semantic extraction, turn the purpose into at least four
+**Behavioral acceptance:** use separate development and final scenario groups (version 2 suite).
+Revise on development cases and open final cases once. The optional `tools/evaluation_runner.py`
+controls prediction contexts, permitted reads and separate grading; see
+[docs/EVALUATION_RUNNER.md](docs/EVALUATION_RUNNER.md). Before semantic extraction, turn the purpose into at least four
 representative tasks with observable success criteria: apply a method, recognize inapplicability,
 preserve disagreement, and handle an unsupported question. Freeze them in the project's
 `fidelity-ledger/acceptance-suite.json`. Derive them from the user request when purpose is already
@@ -491,6 +494,17 @@ Inside the runtime skill root, `references/` is the only subdirectory. No `chapt
 **For each source**, write a single dense `$OUTPUT_ROOT/<library-name>/.agents/skills/<library-name>/references/reference-<book-slug>.md`. This one
 file absorbs what a folder design spreads across `chapters/` + glossary + patterns + cheatsheet — compressed, because
 it's now one file, not a folder.
+
+### Task-directed sections and retrieval experiments
+
+Keep one canonical reference per book. Within it, make a method's prerequisites, steps,
+exceptions and source locator an addressable section. A small task index can point to those
+sections; cross-author comparisons can retrieve the relevant section from each book. The optional
+runner's `index` and `--targeted` condition compare this against whole-book loading on identical
+tasks, measuring quality, missed qualifications and actual provider token usage. Use development
+ablations to restore answer-changing conditions and shorten material that adds no demonstrated
+value. Confirm the selected design on untouched final tasks. See
+[docs/BEHAVIORAL_ACCEPTANCE.md](docs/BEHAVIORAL_ACCEPTANCE.md) for the experiment and limits.
 
 ### Per-reference-file budget
 

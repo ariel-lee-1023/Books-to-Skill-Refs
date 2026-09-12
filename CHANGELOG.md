@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an optional HTTP evaluation runner with isolated prediction contexts, controlled retrieval, separate blinded grading, human dispute review and sealed run records. Final scenario groups cannot be reused in the run registry.
+- Added section-addressed retrieval experiments that compare whole-book and targeted loading by criterion score, missed qualifications, retrieved text and provider token usage. Development tasks now guide compression; final acceptance requires verified run records.
 - Recorded three-condition behavioral acceptance suites, add-a-book regression guidance, evidence-directed reading alerts with unique/repeated coverage accounting, and audits outside the initial extraction list.
 
 

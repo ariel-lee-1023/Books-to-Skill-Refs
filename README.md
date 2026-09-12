@@ -316,3 +316,8 @@ Reading beyond four times the output budget triggers an expenditure review. The 
 `tools/reading_audit.py` separates unique source coverage from repeated reading and permits
 question-driven verification. Each reference also audits source material outside the initial
 framework list. Formats and commands: [Behavioral acceptance](docs/BEHAVIORAL_ACCEPTANCE.md).
+
+The optional [evaluation runner](docs/EVALUATION_RUNNER.md) now executes isolated prediction
+and blind grading, records actual retrieval and token usage, and seals run records that subsequent runs do not overwrite. Version 2 suites separate development from final scenario groups; final groups
+are claimed once. A fourth, targeted-retrieval condition tests addressable canonical sections
+against whole-book loading, with missed qualifications reported explicitly.

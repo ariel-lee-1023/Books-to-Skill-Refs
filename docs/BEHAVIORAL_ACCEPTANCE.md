@@ -10,21 +10,30 @@ preserving a real disagreement, and an unsupported question. Define observable
 success criteria, not framework-name recall. Use user scenarios and source
 metadata to choose tasks; resolve answers against evidence later.
 
+Use version 2 suites for independent final acceptance: separate development and final
+scenario groups before extraction. Revisions use development only; final cases are opened
+once after the candidate is fixed. Version 1 records remain development-only. The optional
+[executable runner](EVALUATION_RUNNER.md) enforces partition separation, captures real model
+requests/retrievals, and separates prediction from blind grading and append-only human review.
+
 Store `acceptance-suite.json` in the generated project's `fidelity-ledger/`:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "defined_before_extraction": true,
   "tasks": [{
     "id": "apply-01",
     "kind": "apply",
+    "partition": "development",
+    "group": "application-scenario-01",
     "prompt": "<concrete situation and requested decision>",
     "criteria": {
       "method": "<observable steps a successful application demonstrates>",
       "condition": "<the prerequisite the answer must check>"
     },
-    "references_required": true
+    "references_required": true,
+    "qualification_criteria": ["condition"]
   }]
 }
 ```
@@ -33,8 +42,8 @@ At least one task must set `references_required: true`; a suite with no referenc
 task is rejected even if an incidental retrieval occurred. Its full-configuration run must
 record an actual retrieved reference, so acceptance exercises the loading mechanism.
 
-This is a task-entry example; a valid suite also includes `inapplicable`,
-`disagreement`, and `unsupported` tasks. Include a case needing detail beyond the
+This is a task-entry example; each development/final partition also includes `inapplicable`,
+`disagreement`, and `unsupported` tasks, with different scenario groups in the two partitions. Include a case needing detail beyond the
 core, plus conditions that would change a recommendation. For an unsupported
 question, success means recognizing the evidence boundary and distinguishing
 retrieval or extrapolation from an attested answer.
@@ -133,3 +142,35 @@ selection reasons, newly found qualifications and whether each was retained or
 excluded with a reason in `coverage-audit.md`. If there is only one eligible span,
 state that limitation. Expand the sample if it reveals an answer-changing omission.
 This is an audit of what extraction missed, not a claim of exhaustive coverage.
+
+## Targeted retrieval and compression experiment
+
+Keep one canonical Markdown reference per book. Organize method sections so the prerequisites,
+steps, answer-changing exceptions and source locator travel together. Do not write a second
+summary that can drift from the canonical reference. `evaluation_runner.py index` creates a
+small addressable index of headings and source line ranges; rebuild it after source edits.
+Its entries reference canonical text and carry source hashes. Add a compact task-to-section
+map in the core's loading note when the task trials establish useful routes.
+
+The runner's optional `--targeted` condition uses the same tasks and model as whole-book
+loading. Each section read automatically includes that book's Mental Model and Decision Rules
+sections. These guards reduce accidental loss of global qualifications but do not prove every
+relevant condition was captured; put local prerequisites and exceptions next to the method.
+Cross-author comparisons can read one relevant section from each author.
+
+The acceptance report shows whole-reference versus targeted criterion scores, missed
+`qualification_criteria`, provider-reported total tokens and retrieved characters. Missing
+provider usage is null, not zero. Count prompt/catalog overhead and repeated context, not only
+the retrieved excerpt. The targeted condition is an experiment: its failure is reported and
+must prevent adoption of that retrieval/compression choice, while an otherwise passing
+whole-reference candidate can still pass ordinary acceptance.
+
+Use development ablations to allocate space: when removing a condition changes a correct answer,
+restore it and shorten lower-value material instead. Spend more of the canonical reference's
+budget on prerequisites, exceptions and distinctions that change decisions, even if they occupy
+little of the source. Shorten sections whose removal does not impair representative tasks.
+Chapter-count formulas remain provisional planning targets; they do not establish usefulness.
+Preserve hard load caps for normal whole-book delivery. If the task evidence cannot fit those
+caps, report the architectural constraint and evaluate a targeted-loading variant explicitly
+before changing the delivery contract. Run the untouched final suite once after selecting the
+candidate; repeated success on development tasks is not broader validation.
