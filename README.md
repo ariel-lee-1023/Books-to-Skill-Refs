@@ -303,3 +303,16 @@ definition, which `validate_library.py` and CI both import) and add a test. Run 
 ## License
 
 MIT © 2026 Ariel Lee. [See LICENSE](LICENSE).
+
+## Behavioral acceptance and reading audits
+
+Full builds now freeze representative tasks before extracting methods and compare recorded
+answers from the same model under a minimal role prompt, the generated core, and core plus
+references. The suite covers application, inapplicability, disagreement and unsupported questions.
+`tools/acceptance_suite.py` verifies records, retrieval traces and freshness, and reports per-task
+scores and added value. Add-a-book runs preserve earlier tasks as regressions.
+
+Reading beyond four times the output budget triggers an expenditure review. The new
+`tools/reading_audit.py` separates unique source coverage from repeated reading and permits
+question-driven verification. Each reference also audits source material outside the initial
+framework list. Formats and commands: [Behavioral acceptance](docs/BEHAVIORAL_ACCEPTANCE.md).

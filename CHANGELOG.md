@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Recorded three-condition behavioral acceptance suites, add-a-book regression guidance, evidence-directed reading alerts with unique/repeated coverage accounting, and audits outside the initial extraction list.
+
+
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

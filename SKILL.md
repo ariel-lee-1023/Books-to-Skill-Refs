@@ -1,6 +1,6 @@
 ---
 name: books-to-skill-refs
-description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a directly usable Agent Skills project: .agents/skills/<library-name>/ contains one expert SKILL.md that establishes how to reason, judge, and respond, with trigger-loaded source references, plus one standalone references/reference-<book-slug>.md per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a working domain expert grounded in a shared, cross-referenced knowledge base."
+description: "Distills MULTIPLE books/documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) in one run into a directly usable Agent Skills project: a discoverable skill directory contains one expert SKILL.md that establishes how to reason, judge, and respond, with trigger-loaded source references, plus one standalone source reference file per book. Extraction discipline: structure over summary, the author's own terminology, density over length, never copy raw text. Self-contained — the extraction runtime ships with the skill. Use when the user points at several sources at once and wants a working domain expert grounded in a shared, cross-referenced knowledge base."
 ---
 
 <!--
@@ -346,19 +346,21 @@ grep -c -i "westrum\|dora" "$FULL_TEXT_PATH"               # verify a framework 
 **Compute the `SOURCE:` fence boundaries once, in Step 2, and reuse them** in Steps 3 and 7. Do not re-grep the
 whole file per section.
 
-**Input budget per book (the anti-waste gate):** cumulative reading from a book's slice should stay **≲ 4× that
-book's reference-file output budget** (Step 7). Going over means you are re-reading. The intended shape is one
-pass: probe (TOC / chapter offsets / framework keywords) → decide the full section list up front → read each
-section slice **exactly once** → write. Never `sed` a range you have already read.
-
-Use targeted `Read(offset,limit)` slices, not unbounded reads. Re-reading a 200-page book once per section costs
-millions of input tokens; grep+sed keeps cost proportional to output.
+**Reading expenditure alert:** cumulative cleaned input near **4× the book's reference output
+budget** (Step 7) triggers an expenditure review, not a hard stop. New material can cross that
+threshold without any rereading. Track unique source-line coverage, repeated source lines and
+actual cleaned input tokens separately in `fidelity-ledger/reading-ledger.json`; summarize with
+`tools/reading_audit.py`. Plan bounded slices and reuse notes. Permit targeted rereading when a
+claim, exception or disagreement remains unresolved, recording the question and resolution.
+Stop when evidence resolves the question, or record the remaining limitation. Do not load the
+whole corpus or reread a book merely to write another section. See
+[docs/BEHAVIORAL_ACCEPTANCE.md](docs/BEHAVIORAL_ACCEPTANCE.md) for the ledger format.
 
 **Clean the slice before reading it.** Slicing controls *how much* you read; it says nothing about *what is in*
 the slice. Converted sources carry a lot that costs tokens and teaches nothing — PDF page markers and `Link:`
 runs, rST directives, per-page site navigation, and end-of-chapter quiz blocks that repeat every option once per
 answer. On one measured chapter the quiz block was **~250 of 460 lines**: more than half the read spent on
-permutations of four multiple-choice options. Those tokens come out of the 4× budget above.
+permutations of four multiple-choice options. Count those tokens toward the expenditure alert above.
 
 ```bash
 "$PYTHON_BIN" "$SKILL_DIR/tools/clean_slice.py" "$FULL_TEXT_PATH" --range <start>,<end> --out /tmp/slice.txt
@@ -374,6 +376,10 @@ denoising the corpus would erase the evidence those run on. Clean a copy of a sp
 ---
 
 ## Step 3 — Analyze structure, per book (the loop begins)
+
+For a full build, resolve Step 4's purpose and freeze the representative task suite before
+extracting frameworks, principles or techniques. Structural probing can precede the suite.
+The same ordering applies when adding a book.
 
 For **each** source (bounded by its `SOURCE:` fence), read the first ~8,000 chars of its slice to identify:
 title, author(s), chapter/section structure, core themes, approximate chapter count. Read its TOC if present.
@@ -442,6 +448,13 @@ as calibrated when it isn't. One indented quote in a prose book is not "technica
 > "What should this library help you do? 1) Apply frameworks while working 2) Think with the authors' models 3) Reference specific concepts 4) All of the above"
 
 Derive `DEPTH`: only option 3 → `DEPTH=reference` (lean, lookup-oriented). Anything including 1/2/4 → `DEPTH=study` (worked detail + reasoning). `DEPTH` applies library-wide unless the user asks otherwise. In Mode 2/3, default `DEPTH=study`.
+
+**Behavioral acceptance:** before semantic extraction, turn the purpose into at least four
+representative tasks with observable success criteria: apply a method, recognize inapplicability,
+preserve disagreement, and handle an unsupported question. Freeze them in the project's
+`fidelity-ledger/acceptance-suite.json`. Derive them from the user request when purpose is already
+clear. Follow [docs/BEHAVIORAL_ACCEPTANCE.md](docs/BEHAVIORAL_ACCEPTANCE.md) for the three-condition
+comparison, recorded answers, retrieval traces and add-a-book regression procedure.
 
 ---
 
@@ -552,10 +565,12 @@ it is the least corpus-invariant part.
 **Coverage check before moving on (acceptance is coverage, not length).** Step 3 produced a framework / principle
 / technique list for this book. Every item on it must either appear in the reference file, or be **explicitly
 recorded as dropped, with a reason** ("minor variant, folded into X"). No silent omissions. Satisfy coverage
-first, then compress toward the range.
+first, then compress toward the range. Also sample at least two source spans outside that
+initial list, preferably from different sections and including exceptions or counterexamples.
+Record locations, new qualifications and inclusion/exclusion reasons in `fidelity-ledger/coverage-audit.md`.
+If fewer spans exist, state the limitation; expand the audit if an answer-changing omission appears.
 
-**Reading:** use Step 2.6 probes against this book's slice (`SOURCE:` fence → next fence), within the 4× input
-budget. Do not load other books.
+**Reading:** use Step 2.6 probes against this book's slice (`SOURCE:` fence → next fence), using the expenditure alert and targeted-verification rule. Do not load other books.
 
 **Study-depth worked example scales to the book, not the section:** reproduce **one** worked example for the whole
 reference file (the single most instructive artifact the author walks through) — not one per chapter. Reconstruct it
@@ -698,11 +713,15 @@ Near the ceiling, remove repetition and redundant lookup material. Keep an inlin
 in the host note. Then merge overlapping core sections and shorten triggers. Preserve distinctive judgments
 and every direct reference link. If still too large, propose splitting by expert task rather than dropping content.
 
-Before Step 8.5, review against an ordinary request, incomplete or conflicting evidence, and a request outside
-the corpus. Does the core support domain-specific judgment, with sources combined where warranted? Can each
-request reach the right depth without book selection? Would the answer address the problem and distinguish
-evidence from synthesis or current retrieval? Rewrite vague or catalog-like passages. This is editorial
-acceptance: the structural validator cannot establish reasoning quality.
+Before Step 8.5, run the frozen task suite using the same model and settings with a minimal
+role prompt, the generated core, and the core plus references in fresh contexts. Save actual
+answers, per-criterion grades and retrieved paths in `fidelity-ledger/acceptance-results.json`.
+Run `tools/acceptance_suite.py` as documented in
+[docs/BEHAVIORAL_ACCEPTANCE.md](docs/BEHAVIORAL_ACCEPTANCE.md). Require the full configuration to
+pass all criteria; report per-task differences and whether the core/references add value over
+the baseline. A tie does not establish improvement. Rewrite vague judgments or broken loading
+rules and rerun. If runs are unavailable, report behavioral acceptance as unrun; structural
+validation alone does not establish reasoning quality.
 
 ---
 
@@ -788,7 +807,7 @@ Usage:
    only where justified; do not append an author summary or rewrite its voice merely because N grew.
    For an older generated router-only master, use Step 8 to synthesize an expert core from its existing
    references and the new source, retaining all links and its established scope.
-5. Run Step 8’s editorial review and Step 8.5’s validation, then Step 9 cleanup. Report the book added,
+5. Preserve the existing acceptance tasks and prior results, add tasks for the new material, and check for per-task regressions. Run Step 8’s behavioral comparison and Step 8.5’s validation, then Step 9 cleanup. Report the book added,
    loading-trigger changes, and any substantive change in the expert’s judgment.
 
 ---
