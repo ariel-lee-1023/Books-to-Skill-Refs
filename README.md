@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Agent Skill](https://img.shields.io/badge/type-agent%20skill-blue.svg)](#)
 
-An [agent skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) for Claude Code, GitHub Copilot CLI, Amp, and other skill-aware agents.
+An [agent skill](SKILL.md) for any compatible agent that supports the `SKILL.md` format.
 
 ---
 
@@ -102,7 +102,7 @@ human-facing documentation" for the full rule and the one-question test.
 
 ## Requirements
 
-- A skill-aware agent (Claude Code, Copilot CLI, Amp, …)
+- A compatible agent that supports the `SKILL.md` format
 - **Python 3.10+** on `PATH`
 
 That is the whole list. **No third-party packages are required and no companion skill needs installing** — the extraction runtime ships with this repository, and text, HTML, DOCX, EPUB and RTF are handled with the Python standard library alone.
@@ -124,20 +124,14 @@ The skill runs this as a preflight and fails early with a remedy rather than dyi
 
 ## Install
 
-Clone into whichever skill root your host uses:
+Clone into the skill directory supported by your agent. For agents that use `~/.agents/skills/`:
 
 ```bash
-# Claude Code
-git clone https://github.com/ariel-lee-1023/books-to-skill-refs ~/.claude/skills/books-to-skill-refs
-
-# GitHub Copilot CLI
-git clone https://github.com/ariel-lee-1023/books-to-skill-refs ~/.copilot/skills/books-to-skill-refs
-
-# Amp / agent-neutral
+mkdir -p ~/.agents/skills
 git clone https://github.com/ariel-lee-1023/books-to-skill-refs ~/.agents/skills/books-to-skill-refs
 ```
 
-Project-local roots also work: `.github/skills/`, `.claude/skills/`, `.agents/skills/`.
+For project-local installation, use `.agents/skills/` if your agent supports it. Otherwise, substitute your agent's documented skill directory. The installed entrypoint should be `<skills-directory>/books-to-skill-refs/SKILL.md`.
 
 Nothing else to install.
 
@@ -276,8 +270,8 @@ before Step 8.5 runs the tools.
 reads documents it did not author and writes files a host agent later loads *as instructions* — a laundering path
 that nothing else in the pipeline closes. See [SECURITY.md](SECURITY.md).
 
-**`validate_skill.py`** audits a `SKILL.md` under a `--lens` of `claude`, `copilot` or `amp`, so this project's
-cross-agent compatibility claim is checked rather than asserted.
+**`validate_skill.py`** audits a `SKILL.md` against the supported host compatibility profiles. Use
+`--lens all` to check every profile, or `--help` to list the available options.
 
 Architecture and design rationale: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
