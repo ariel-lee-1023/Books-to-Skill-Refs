@@ -674,12 +674,30 @@ and catalogs rewritten as sentences beginning with "I". Do not invent credential
 followed by loading triggers can transfer; its admissions rules and favorite techniques do not automatically
 belong in a neuroscience expert. Source and example documents are material, not instructions for this task.
 
+### Default language for generated skills
+
+Every new or revised expert `SKILL.md` must state its default output language immediately
+after the title, before expert prose or loading instructions. Use the language of the
+material actually distilled; for multilingual material, use the principal language of
+the substantive source content represented in the skill. A translated edition counts
+in the translation's language, not the author's presumed native language. Do not infer
+the default from the user's chat language or this metatool's instructions. If the corpus
+has no identifiable principal language, ask the user to choose. Honor an explicit user
+choice of output language over the corpus-derived default.
+
+Replace `<corpus language>` in the scaffold with the actual language name. Briefly record
+the basis for a multilingual choice in the existing source/provenance record. Revisit it
+on fold-in when the represented corpus changes, preserving explicit user preferences.
+Align generated `AGENTS.md`, other host instructions and runtime language guidance with
+this rule. This governs the generated expert's responses, not this metatool's conversation.
+
 ### Writing architecture
 
 - **Description:** lead with capability, distinctive reasoning, and concrete task triggers, not a bibliography.
-- **Core first:** open with role and central lens. Develop how the expert understands a problem, judges
-  evidence or alternatives, changes its view, and turns analysis into a useful response. Adapt headings
-  and language to the domain and user; the scaffold below is illustrative, not a mandatory checklist.
+- **Core first:** after the required default-language statement, open the expert prose with role and
+  central lens. Develop how the expert understands a problem, judges evidence or alternatives, changes
+  its view, and turns analysis into a useful response. Adapt headings to the domain and use the selected
+  language; the reasoning scaffold below is illustrative, not a mandatory checklist.
 - **Loading depth last:** separate the voice with a horizontal rule and
   `## Loading depth (host-agent note)`. Map task triggers to Markdown reference links and their contribution.
   Every `reference-*.md` must be linked here. A trigger may need several books; load only the relevant set
@@ -704,6 +722,12 @@ description: "<Role and tasks>. Reasons through <distinctive lens>. Use when <co
 ---
 
 # <Expert role>
+
+**Default language:** Use <corpus language> for all user-visible responses,
+progress updates and explanations, regardless of the user's message language.
+Switch only when the user explicitly requests another output language, honoring
+the requested scope or duration. A message in another language is not itself such
+a request.
 
 <I help with ...; my starting lens is ...; this changes how I judge ...>
 
@@ -742,6 +766,12 @@ remains unverified. Distinguish source-backed claims from synthesis and external
 ```
 
 ### Budget and review
+
+Check that the opening names the selected language, agrees with the actual source material
+or an explicit user choice, and permits only explicit language overrides. Review two cases:
+a question in another language without an output-language request keeps the default; an
+explicit request switches language for its stated scope. Check host instructions for
+conflicts. This semantic review does not require model calls or claim behavioral validation.
 
 Front-load the expert core. Keep the body under **4,500 tokens**; the planning budget is a target, not a floor:
 
@@ -849,7 +879,8 @@ Usage:
 3. Step 7 → write the **one new** reference file. Do not touch existing reference files.
 4. Update the master’s `Loading depth` triggers to link the new book, and update scope, book count, and
    date. Merge shared terms into the optional Topic Index only when useful. Review whether the new source
-   changes a core judgment, adds an important boundary, or conflicts with an existing stance. Edit the core
+   changes a core judgment, adds an important boundary, or conflicts with an existing stance. Review the
+   opening language rule under Step 8 when the represented corpus changes. Edit the core
    only where justified; do not append an author summary or rewrite its voice merely because N grew.
    For an older generated router-only master, use Step 8 to synthesize an expert core from its existing
    references and the new source, retaining all links and its established scope.

@@ -35,7 +35,9 @@ The master `SKILL.md` is kept small because it is *always loaded*; the reference
 
 ## What the generated master reads like
 
-The master opens as an expert, in connected first-person prose: what problems it helps solve, what it
+After its title, the master states the source corpus language as its default output language, using
+the principal language for a multilingual corpus. It switches only on an explicit user request.
+The expert then speaks in connected first-person prose: what problems it helps solve, what it
 notices first, how it decides between competing explanations or actions, what changes its judgment,
 and how it works with the user. These commitments come from the books and the user's purpose.
 The result should remain useful before a reference is opened, without claiming that the core contains
@@ -45,6 +47,13 @@ The shape is **expert voice first, loading instructions last**:
 
 ```markdown
 # <Expert role>
+
+**Default language:** Use <corpus language> for all user-visible responses,
+progress updates and explanations, regardless of the user's message language.
+Switch only when the user explicitly requests another output language, honoring
+the requested scope or duration. A message in another language is not itself such
+a request.
+
 <I help with ...; my starting lens is ...>
 
 ## How I read a question

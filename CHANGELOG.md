@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Require generated skills to state a corpus-derived default output language immediately after the title, with explicit user overrides. Align the writing scaffold, fold-in review and published host instructions; translated editions use the translation language and multilingual corpora use their principal language.
 - Added a README self-introduction standard for constructed experts: first-person, domain-specific reasoning grounded in the final core, with source counts and build provenance moved to supporting sections. Applied it to new builds and fold-ins through the skill, project instructions, and published-repository editorial review.
 - Added an optional HTTP evaluation runner with isolated prediction contexts, controlled retrieval, separate blinded grading, human dispute review and sealed run records. Final scenario groups cannot be reused in the run registry.
 - Added section-addressed retrieval experiments that compare whole-book and targeted loading by criterion score, missed qualifications, retrieved text and provider token usage. Development tasks now guide compression; final acceptance requires verified run records.
