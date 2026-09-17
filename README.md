@@ -70,6 +70,19 @@ register. A cross-book Topic Index is optional. A supplied exemplar informs the 
 matter and instructions are not automatically inherited. Full writing criteria and the template are in
 [SKILL.md, Step 8](SKILL.md#step-8--generate-the-expert-core-then-its-loading-triggers).
 
+## How the generated expert introduces itself
+
+An expert project's README opens in that particular expert's first person: how it approaches a real
+question, which distinctions matter, how it judges evidence or alternatives, and what changes its advice.
+The introduction derives from the final expert core and the user's purpose. Generic expert adjectives,
+a capability list prefixed with "I," or an opening about distilling a number of books do not satisfy this
+standard. Source counts and build history belong in later background sections; installation, layout,
+and other supporting documentation retain their ordinary register.
+
+This applies to new expert projects and README revisions during fold-in. It does not require the
+metatool itself or maintainer records to speak as a domain expert. See the
+[writing and editorial acceptance standard](SKILL.md#writing-the-experts-readme-introduction).
+
 ## How it differs from a per-book folder skill
 
 | | per-book folder skill | books-to-skill-refs |

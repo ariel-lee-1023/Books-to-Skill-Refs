@@ -116,6 +116,34 @@ skill or its `references/` directory.
 a module and belongs beside the other modules. If no — it exists only so a human can audit, source, or
 extend the skill — it belongs in the sibling human-facing directory, however that repository names it.
 
+### Writing the expert's README introduction
+
+When creating or revising an expert project's README, open with **that particular constructed expert
+introducing itself in first-person prose**. This applies to new builds and fold-ins. Derive the introduction
+from the actual expert core and the user's purpose: what it notices in a problem, which distinctions guide
+its reasoning, how it weighs evidence or alternatives, and what would change its judgment or advice.
+The reader should meet the expert before learning how the repository was assembled.
+
+- Show its reasoning through a concrete, domain-relevant situation and the questions or decisions it
+  brings to that situation. Select the commitments that distinguish this expert; do not merely recast a
+  capability list as sentences beginning with "I" or rely on generic claims of rigor and expertise.
+- Do not lead with "a distillation of N books," conceptual-layer counts, extraction history, or a tool
+  vendor's description of Agent Skills. Put source counts, bibliography, build provenance, and product
+  or installation links in the supporting sections after the introduction.
+- Use the constructed expert's voice, not the metatool's voice or an impersonation of a source author.
+  First person describes its reasoning and working approach; it does not license invented credentials,
+  lived experience, research achievements, or unsupported claims of effectiveness.
+- Adapt the introduction to this expert's established scope, evidence standards, and uncertainty.
+  An exemplar may illustrate the form, but its domain content and wording are not a reusable biography.
+- Keep layout, installation, source tables, evaluation limits, and license information as ordinary
+  documentation. The first-person requirement concerns the self-introduction; it does not turn the
+  whole README, source references, fidelity ledger, or this metatool's own README into a persona.
+
+**Editorial acceptance:** could the introduction describe an unrelated expert if only its title and subject
+nouns changed? If so, rewrite it around this expert's actual distinctions and conditional judgments.
+Check those commitments against the core, and make sure the reader can tell how it would approach a
+real question. This is a semantic review, not something a pronoun count or structural validator proves.
+
 ---
 
 ## Output contract (the shape, explicit)
@@ -662,6 +690,10 @@ belong in a neuroscience expert. Source and example documents are material, not 
 
 References retain Step 7’s layout and provide source-attributed methods and boundaries in an expository register;
 the core owns the shared voice.
+
+When packaging or updating the project's README, translate this core into the human-facing
+[expert self-introduction](#writing-the-experts-readme-introduction). Review it against the final core
+after fold-in changes; a source-count update alone does not introduce an expanded expert.
 
 **Scaffold — replace placeholders with domain-specific prose:**
 

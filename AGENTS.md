@@ -14,6 +14,8 @@ Follow [the published-repository layout](docs/PUBLISHED_REPOSITORIES.md), modele
 
 Name the directory for source provenance, coverage, fidelity, evaluation, and validation records **`fidelity-ledger/`**. Do not call it `docs/` in generated destinations, and do not place these maintainer records in `references/`. Load only the runtime skill and relevant references when answering domain questions.
 
+Introduce each constructed expert in its README using that expert's first-person reasoning voice, grounded in its actual core and the user's purpose. Explain its distinctive way of approaching problems and making judgments before describing source counts or the distillation process. Follow [the README writing standard](SKILL.md#writing-the-experts-readme-introduction) for new builds and fold-in revisions.
+
 This user-requested publishing profile overrides the metatool's default nested output shape for these tasks. Preserve the extraction, coverage, attribution, budget, and instruction-boundary disciplines. Validate the actual published layout with `python3 tools/validate_library.py <destination> --layout published-repo`, and scan the canonical `SKILL.md` and `references/` separately. Follow an existing destination's architecture or an explicit later user instruction when it differs.
 
 The user's request to publish is authorization to push the finished result to that destination after checks pass. Preserve remote history and unrelated changes; do not force-push. Verify the remote commit and tree before reporting completion. An authorization for a generated destination does not imply publishing unrelated changes to this metatool's own remote.

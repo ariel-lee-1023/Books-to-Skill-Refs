@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a README self-introduction standard for constructed experts: first-person, domain-specific reasoning grounded in the final core, with source counts and build provenance moved to supporting sections. Applied it to new builds and fold-ins through the skill, project instructions, and published-repository editorial review.
 - Added an optional HTTP evaluation runner with isolated prediction contexts, controlled retrieval, separate blinded grading, human dispute review and sealed run records. Final scenario groups cannot be reused in the run registry.
 - Added section-addressed retrieval experiments that compare whole-book and targeted loading by criterion score, missed qualifications, retrieved text and provider token usage. Development tasks now guide compression; final acceptance requires verified run records.
 - Recorded three-condition behavioral acceptance suites, add-a-book regression guidance, evidence-directed reading alerts with unique/repeated coverage accounting, and audits outside the initial extraction list.
