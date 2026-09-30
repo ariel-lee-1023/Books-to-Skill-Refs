@@ -92,6 +92,12 @@ This applies to new expert projects and README revisions during fold-in. It does
 metatool itself or maintainer records to speak as a domain expert. See the
 [writing and editorial acceptance standard](SKILL.md#writing-the-experts-readme-introduction).
 
+The [expert README template](docs/README_TEMPLATE.md) specifies content order and three Mermaid
+connection diagrams: workflow, repository/loading map, and source responsibilities. Keep the entire
+first-person introduction visible directly under the title, before navigation or diagrams, and put
+Repository layout before Sources and their responsibilities. Use the template for both creation and
+README maintenance, adapting its labels and paths to the actual expert.
+
 ## How it differs from a per-book folder skill
 
 | | per-book folder skill | books-to-skill-refs |
