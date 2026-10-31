@@ -337,6 +337,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: the prompt states con
 — if you change a budget in `SKILL.md`, change the matching constant in `tools/reference_budget.py` (the single
 definition, which `validate_library.py` and CI both import) and add a test. Run the suite before opening a PR.
 
+For MIT-licensed generated repositories, `LICENSE` contains only the standard license text and copyright notice. Scope explanations and exclusions for source books belong in the generated README's License section. The local author is Ariel Lee; the 2026 notice is `Copyright (c) 2026 Ariel Lee`. The published-repository validator rejects altered MIT terms or added scope paragraphs.
+
 ## License
 
 MIT © 2026 Ariel Lee. [See LICENSE](LICENSE).

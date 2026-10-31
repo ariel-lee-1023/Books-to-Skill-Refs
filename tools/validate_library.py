@@ -68,6 +68,24 @@ PIPE_TABLE_ROW = re.compile(r"^\s*\|.*\|.*\|", re.MULTILINE)
 DEPTH_DECL = re.compile(r"\*\*Depth\*\*:\s*(reference|study)", re.IGNORECASE)
 INDEX_ENTRY = re.compile(r"^[-*]\s+(.*?)(?:→|->)(.*)$", re.MULTILINE)
 
+MIT_BODY = """Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."""
+
 
 @dataclass
 class Report:
@@ -80,6 +98,31 @@ class Report:
 
     def warn(self, msg: str) -> None:
         self.warnings.append(msg)
+
+
+def check_published_license(path: Path, rep: Report) -> None:
+    """Check declared MIT packaging without choosing or changing other licenses."""
+    if not path.is_file():
+        return  # The packaging check reports missing/empty files.
+    text = path.read_text(encoding="utf-8").strip()
+    if not re.search(r"^MIT License\s*$", text, re.MULTILINE | re.IGNORECASE):
+        return
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    notices = []
+    index = 1
+    while index < len(lines) and re.fullmatch(
+        r"Copyright (?:\(c\)|©) \d{4}(?:\s*[-–,]\s*\d{4})* .+", lines[index]
+    ):
+        notices.append(lines[index])
+        index += 1
+    if (lines[0] != "MIT License" or not notices
+            or " ".join(" ".join(lines[index:]).split()) != " ".join(MIT_BODY.split())):
+        rep.error("MIT LICENSE must contain only the standard MIT title, copyright "
+                  "notice(s) and unmodified permission/warranty text; put scope and "
+                  "third-party exclusions in the README License section")
+        return
+    rep.facts["license"] = {"spdx_id": "MIT", "standard_text": True,
+                            "copyright_notices": notices}
 
 
 def sections_of(text: str) -> dict[str, str]:
@@ -154,8 +197,9 @@ def check_layout(skill_root: Path, rep: Report, *, published_repo: bool = False)
     that hosts expect supporting files to live in.
     """
     refs_dir = skill_root / REFERENCES_DIR
-    project_dirs = {".agents", ".git", "fidelity-ledger"} if published_repo else set()
-    project_files = {"AGENTS.md", "README.md", "LICENSE", ".gitignore"} if published_repo else set()
+    project_dirs = {".agents", ".git", ".github", "fidelity-ledger"} if published_repo else set()
+    project_files = {"AGENTS.md", "README.md", "LICENSE", ".gitignore",
+                     "CHANGELOG.md", "NOTICE.md"} if published_repo else set()
 
     for child in sorted(skill_root.iterdir()):
         if child.name in project_dirs:
@@ -419,6 +463,7 @@ def validate(project: Path, *, layout: str = "nested") -> Report:
             path = project / filename
             if not path.is_file() or not path.read_text(encoding="utf-8").strip():
                 rep.error(f"published-repo requires a nonempty {filename}")
+        check_published_license(project / "LICENSE", rep)
         ledger = project / "fidelity-ledger"
         if not ledger.is_dir() or not any(p.is_file() for p in ledger.iterdir()):
             rep.error("published-repo requires source and validation records in fidelity-ledger/")

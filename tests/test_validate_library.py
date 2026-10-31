@@ -176,8 +176,61 @@ class TestPublishedRepository(unittest.TestCase):
         _, budget = measure_library(self.project)
         self.assertEqual(rep.facts["master_body_tokens"], budget["tokens"])
 
+    def test_published_repo_allows_ci_and_attribution_scaffolding(self):
+        workflow = self.project / ".github" / "workflows" / "validate.yml"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text("name: Validate\n")
+        for name in ("CHANGELOG.md", "NOTICE.md"):
+            (self.project / name).write_text("Project maintenance documentation\n")
+        rep = validate(self.project, layout="published-repo")
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertEqual(rep.warnings, [], messages(rep))
+        (self.project / "chapters").mkdir()
+        self.assertIn("chapters/", messages(validate(self.project, layout="published-repo")))
+        self.assertTrue(validate(self.project).errors)
+
     def test_default_nested_contract_is_not_relaxed(self):
         self.assertTrue(validate(self.project).errors)
+
+    def test_standard_mit_license_and_wrapping(self):
+        license_text = (FIXTURES.parent.parent / "LICENSE").read_text()
+        for body in (license_text, license_text.replace("\nof this software", " of this software")):
+            with self.subTest(body=body):
+                (self.project / "LICENSE").write_text(body)
+                rep = validate(self.project, layout="published-repo")
+                self.assertEqual(rep.errors, [], messages(rep))
+                self.assertEqual(rep.facts["license"]["spdx_id"], "MIT")
+                self.assertEqual(rep.facts["license"]["copyright_notices"],
+                                 ["Copyright (c) 2026 Ariel Lee"])
+
+    def test_mit_rejects_scope_notes_and_modified_terms(self):
+        original = (FIXTURES.parent.parent / "LICENSE").read_text()
+        invalid = {
+            "appended scope": original + "\nScope: excludes source books.\n",
+            "prepended scope": "Scope: original text only.\n\n" + original,
+            "modified terms": original.replace("and/or sell", "but not sell"),
+            "missing notice": original.replace("Copyright (c) 2026 Ariel Lee", ""),
+        }
+        for case, body in invalid.items():
+            with self.subTest(case=case):
+                (self.project / "LICENSE").write_text(body)
+                rep = validate(self.project, layout="published-repo")
+                self.assertIn("MIT LICENSE must contain only", messages(rep))
+
+    def test_mit_preserves_other_owners_and_existing_notices(self):
+        original = (FIXTURES.parent.parent / "LICENSE").read_text()
+        (self.project / "LICENSE").write_text(original.replace(
+            "Copyright (c) 2026 Ariel Lee",
+            "Copyright (c) 2020-2025 Original Author\nCopyright (c) 2026 New Author"))
+        rep = validate(self.project, layout="published-repo")
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertEqual(len(rep.facts["license"]["copyright_notices"]), 2)
+
+    def test_does_not_apply_mit_contract_to_other_licenses(self):
+        (self.project / "LICENSE").write_text("BSD 3-Clause License\nExisting terms\n")
+        rep = validate(self.project, layout="published-repo")
+        self.assertEqual(rep.errors, [], messages(rep))
+        self.assertNotIn("license", rep.facts)
 
     def test_rejects_missing_packaging_and_wrong_ledger_name(self):
         (self.project / "LICENSE").unlink()

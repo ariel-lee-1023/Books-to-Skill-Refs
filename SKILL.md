@@ -175,6 +175,11 @@ The outer directory is a complete project that can be opened directly by a compa
 
 **One reference file per book, and they are all siblings.** No `chapters/`. No `glossary.md`, `patterns.md`, `cheatsheet.md`. No per-book subfolders inside `references/`. The nesting this design rejects is nesting *within* a book's material — not the one conventional directory that hosts expect supporting files to live in.
 
+### License packaging for published repositories
+
+When packaging a published repository with an MIT license, keep `LICENSE` limited to the standard MIT title, verified copyright notice and unmodified permission/warranty text. Put the license scope and exclusions for source books or other third-party materials in the README's License section, never in `LICENSE`. This keeps project explanations separate from the recognizable license text. Use the author/year specified by the user's local profile rather than inferring a legal name from a hosting username. Preserve an existing destination's different license unless the user authorizes a change. The published-repository validator checks MIT text, including rejection of appended scope notes; it does not choose a license or copyright owner.
+
+
 ---
 
 ## Modes of operation

@@ -22,6 +22,12 @@ The user's request to publish is authorization to push the finished result to th
 
 After validating the staged project, move it into `/Users/AI products/GIthub/<repository-name>/` before committing and pushing. Use the intended remote repository's name unless the user specifies another local name. If that path already exists, inspect it first and integrate into a matching checkout while preserving its `.git`, history, and local changes; never overwrite another repository or directory. Verify origin, post-move discovery symlink, and the remote branch commit and tree against the local result. Do not clone a second local copy after publication.
 
+## Local authorship and license policy
+
+The local project author's name is **Ariel Lee**, not the GitHub username. For this user's 2026 MIT-licensed deliverables, use the exact line `Copyright (c) 2026 Ariel Lee`. Preserve existing third-party notices and do not silently relicense an existing destination.
+
+Keep `LICENSE` limited to the standard MIT title, copyright notice and unmodified permission/warranty text. Put license scope, source-book exclusions and other third-party-rights explanations in the README's License section, never before or after the MIT text in `LICENSE`. Apply this rule to new builds and fold-in maintenance; validate MIT text under the published-repository profile.
+
 ## Maintenance and communication
 
 For all new or revised source/topic references, follow the [direct-statement reference contract](SKILL.md#required-direct-statement-references): state source-supported views, reasoning, causal links and conditions directly, avoiding author-reporting frames such as "the author argues" or 「某某认为」「他指出」. Preserve source locators, quotation attribution, uncertainty and normal references to historical actors. Keep editor-invented inferences and application advice outside runtime references in clearly labelled `fidelity-ledger/` notes. Apply and record an evidence-based review during creation, upgrades/fold-ins and before delivery; keyword scans and structural validation do not establish semantic compliance.
