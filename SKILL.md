@@ -69,6 +69,8 @@ In that situation, apply this tool's **discipline**, not its **output shape**:
 - Carry over: structure-over-summary, the author's own terminology preserved exactly, density over
   length, front-loading, never copying raw text verbatim, the per-book sliced-reading method, and the
   coverage check (every named framework either lands in the module or is explicitly recorded as dropped).
+  Apply Step 7's [direct-statement reference contract](#required-direct-statement-references) to new or
+  revised topic/source modules, whatever the destination calls them.
 - Do **not** carry over: the expert-`SKILL.md`-plus-`reference-<slug>.md`-per-book output contract, this
   tool's own file-naming pattern, or its own Fold-in Workflow mechanics. The destination repo's own module
   template, its own trigger-table convention, and its own extension protocol (if it documents one — read
@@ -531,6 +533,45 @@ Inside the runtime skill root, `references/` is the only subdirectory. No `chapt
 file absorbs what a folder design spreads across `chapters/` + glossary + patterns + cheatsheet — compressed, because
 it's now one file, not a folder.
 
+### Required direct-statement references
+
+Every new or revised source reference must state source-supported views, judgments, reasoning,
+causal links and conditions **directly**. This applies to `references/reference-*.md` and equivalent
+topic/source modules in an existing destination, during creation, upgrades and fold-ins. Make the
+object, relation or condition the subject of the sentence. Preserve the source's explanatory sequence,
+distinctions, examples, exceptions and degree of certainty; a distillation is more than conclusions.
+
+Do not frame the expository body as a report about the author: "[name] believes", "he/she argues",
+"the author points out", "in this book the author explains", or equivalents such as 「某某认为」
+「他指出」「作者在本书中」 (including traditional-script forms). Do not turn it into an imitation prompt
+such as "to answer as [name], follow these steps". An attested method can be stated with its trigger
+and steps. An editor's newly invented inference, method, application advice or reconstruction must
+not become the author's view: keep it outside runtime references in clearly labelled maintainer
+notes in `fidelity-ledger/` (or the existing destination's maintainer area). Do not fill source gaps
+with editorial additions. A faithful paraphrase or compact reconstruction of a source's own worked
+example remains source-derived; a newly invented example or extension does not.
+
+Schematic rewrite: "The author argues that weak oversight can make patronage undermine
+accountability" becomes "Under weak oversight, patronage can undermine accountability. [E12]"
+The condition and uncertainty survive. Removing a reporting clause does not establish the claim as
+fact or turn a paraphrase into a quotation. Direct statement requires neither first-person pronouns
+nor invented autobiographical speech.
+
+Keep source IDs, locators, dates and necessary attribution beside the relevant material or in a source
+table. Preserve names in bibliographic titles, labelled quotations and source notes, and normal names
+or pronouns for historical actors, interlocutors and other actual objects of analysis. Distinguish the
+source author's claims from other speakers' questions or quoted views, translations and editorial
+wording; preserve disagreements and their attribution. Do not globally delete names or pronouns or
+erase substantive qualifications to satisfy the prose rule.
+
+**Editorial acceptance:** during creation, after an upgrade or fold-in, and before delivery, review
+every produced or revised reference's expository body against its evidence for direct statement,
+preserved reasoning and conditions, clear attribution, and no unsupported editorial additions.
+Record the reviewed files, source locations, result and any unresolved gaps in the existing source
+review, provenance or `fidelity-ledger/coverage-audit.md`. Correct failures before claiming compliance;
+report any review that remains unverified. Search hits can locate possible reporting frames, but
+neither a zero-hit scan nor structural validation establishes this semantic check.
+
 ### Task-directed sections and retrieval experiments
 
 Keep one canonical reference per book. Within it, make a method's prerequisites, steps,
@@ -631,34 +672,39 @@ compactly; never copy long raw passages. Reference-depth omits worked examples e
 ```markdown
 # <Full Title> — <Author(s)>
 **Format**: <pdf/epub/…> | **Pages**: ~<N> | **Sections**: <N> | **Depth**: <reference|study>
+**Source**: <edition/date and source ID; keep section/page locators beside the relevant claims>
 
 ## Mental Model (read first)
-<2–4 sentences: how this author thinks and the one thing to take from the whole book.>
+<2–4 sentences stating the central lens, causal relations and conditions directly, with source locators.>
 
 ## Frameworks & Structure
 <!-- The book's own structure is the spine. One compact block per chapter/major section.
      Preserve exact framework names. Define key terms inline on first use (this replaces
-     the glossary). Fold techniques/patterns in here as "How:" steps (this replaces patterns.md). -->
+     the glossary). Fold source-attested techniques/patterns in here as "How:" steps
+     (this replaces patterns.md). State views directly; preserve conditions and attribution. -->
 ### <Section / Chapter N: Title>
-- **Core idea**: <1 sentence>
+- **Core idea**: <1 direct statement with its conditions and source locator>
 - **<Framework Name>** — <exact formulation>. When: <situation>. How: <steps/criteria>.
 - **<Term>**: <one-sentence definition>   ← inline glossary
 - **Anti-pattern** — <what to avoid>: <why it fails>
 (repeat per section; front-load the most important sections)
 
 ## Worked Example  *(DEPTH=study only — one for the whole book; omit for reference)*
-<One concrete example the author works end-to-end, reconstructed compactly. Never raw-copied.>
+<State one source-attested example's situation, reasoning and outcome directly, reconstructed
+compactly with its locator. Never raw-copied; do not invent an application or attribute it to the source.>
 
 ## Decision Rules & Judgment
 <!-- The surviving essence of a cheatsheet: the author's if/then judgment,
-     stated so a reader can act without re-reading. Compact rules and tables only —
+     stated directly with its conditions and source locators so a reader can act without re-reading.
+     Do not invent rules or application advice. Compact rules and tables only —
      no bare term→definition rows (those are inline above). Every line helps DECIDE.
      STRICT-MODE SWITCH: delete this whole section for a pure structural distillation. -->
 - When <X>, do <Y>, because <Z>.
-- <threshold / default / tell-and-smell the author commits to>
+- <source-attested threshold / default / diagnostic cue, stated directly with its limits>
 
 ## Key Takeaways
-1. <actionable> 2. <actionable> 3. <actionable>   (3–7 a practitioner must remember)
+1. <source-supported takeaway> 2. <source-supported takeaway> 3. <source-supported takeaway>
+(3–7 direct statements preserving conditions; no editor-invented advice)
 ```
 
 ---
@@ -714,8 +760,8 @@ this rule. This governs the generated expert's responses, not this metatool's co
   note, with terms spanning at least two books. Use `## Cross-book Topic Index` and
   `- **<Term>** → <slug1>, <slug2>` so the validator can check targets.
 
-References retain Step 7’s layout and provide source-attributed methods and boundaries in an expository register;
-the core owns the shared voice.
+References retain Step 7's layout and [direct-statement contract](#required-direct-statement-references),
+providing source-attributed methods and boundaries in an expository register; the core owns the shared voice.
 
 When packaging or updating the project's README, translate this core into the human-facing
 [expert self-introduction](#writing-the-experts-readme-introduction) and use the
@@ -815,6 +861,10 @@ validation alone does not establish reasoning quality.
 Run the structural validator after the editorial review and before reporting success —
 **do not report a library you have not verified.**
 
+Before delivery, complete the [direct-statement review](#required-direct-statement-references) for every
+produced or revised reference and record it in the source/coverage ledger. The structural validator
+and injection scan below do not verify prose fidelity, attribution or the absence of editorial invention.
+
 ```bash
 "$PYTHON_BIN" "$TOOLS/validate_library.py" "$OUTPUT_ROOT/<library-name>"
 ```
@@ -885,7 +935,9 @@ Usage:
 
 1. Run Steps 0–2 for the new source(s) only.
 2. Step 5 → derive a unique `references/reference-<slug>.md` (append `-2` on collision).
-3. Step 7 → write the **one new** reference file. Do not touch existing reference files.
+3. Step 7 → write the **one new** reference file and apply its direct-statement review. Leave existing
+   references unchanged unless the task also calls for their revision. For reference upgrades, apply
+   the same contract and evidence review to every revised file.
 4. Update the master’s `Loading depth` triggers to link the new book, and update scope, book count, and
    date. Merge shared terms into the optional Topic Index only when useful. Review whether the new source
    changes a core judgment, adds an important boundary, or conflicts with an existing stance. Review the
@@ -893,8 +945,8 @@ Usage:
    only where justified; do not append an author summary or rewrite its voice merely because N grew.
    For an older generated router-only master, use Step 8 to synthesize an expert core from its existing
    references and the new source, retaining all links and its established scope.
-5. Preserve the existing acceptance tasks and prior results, add tasks for the new material, and check for per-task regressions. Run Step 8’s behavioral comparison and Step 8.5’s validation, then Step 9 cleanup. Report the book added,
-   loading-trigger changes, and any substantive change in the expert’s judgment.
+5. Preserve the existing acceptance tasks and prior results, add tasks for the new material, and check for per-task regressions. Run Step 8’s behavioral comparison and Step 8.5’s validation, including the recorded reference prose review, then Step 9 cleanup. Report the book added,
+   loading-trigger changes, reference review result, and any substantive change in the expert’s judgment.
 
 ---
 
@@ -909,3 +961,4 @@ Usage:
 6. **Never copy raw text** — always synthesize.
 7. **The expert core is the payoff** — synthesize how to reason and judge; keep source depth reachable through task triggers. A Topic Index is optional support.
 8. **Name slug rule** — `name:` must be lowercase letters/digits/hyphens only (no spaces, no `&`, not "claude"/"anthropic"). The pretty title lives in the `#` heading and description, not in `name:`.
+9. **State source content directly** — follow the [reference contract](#required-direct-statement-references): preserve reasoning, conditions and attribution; keep editor-invented extensions in maintainer notes; review new and revised references against evidence before delivery.

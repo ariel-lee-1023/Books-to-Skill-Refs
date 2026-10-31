@@ -128,6 +128,18 @@ a directory. If a library needs the second kind, it lives at the project root ou
 maintainer documentation as if it were skill content. See `SKILL.md` → "Host-facing modules vs.
 human-facing documentation" for the full rule and the one-question test.
 
+## Reference prose and attribution
+
+New and revised references state source-supported views, reasoning, causal links and conditions
+directly, without reporting frames such as "the author argues" or 「某某认为」「他指出」. Preserve
+source IDs and locators, quotation attribution, uncertainty, and normal references to historical
+actors. Editor-invented inferences, methods and application advice belong in clearly labelled
+maintainer notes outside runtime references. This does not require first-person prose.
+
+Creation, upgrades, fold-ins and delivery require an evidence-based review of every produced or
+revised reference, recorded in the source/coverage ledger. A keyword scan or structural validator
+cannot certify it. See the [direct-statement contract and template](SKILL.md#required-direct-statement-references).
+
 ## Requirements
 
 - A compatible agent that supports the `SKILL.md` format
@@ -313,6 +325,7 @@ Architecture and design rationale: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 6. Never copy raw text — synthesize
 7. Synthesize an expert’s reasoning and judgment; route to source depth by task
 8. `name:` slugs are lowercase letters, digits, and hyphens only
+9. State source content directly; preserve conditions and attribution, separate editorial additions, and review references against evidence before delivery
 
 ## Strict mode
 

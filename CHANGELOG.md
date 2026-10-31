@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Align source-reference prose with persona-distiller's direct-statement contract: preserve reasoning, causal conditions and attribution without author-reporting frames, keep editor-invented extensions outside runtime references, and require recorded evidence review during creation, upgrades/fold-ins and before delivery. Update the reference template, project instructions and published-repository checks.
 - Added a reusable expert README template with ordered sections and Mermaid workflow, repository/loading and source-responsibility diagrams. Keep first-person introductions expanded directly below the title and repository layout before sources; route new builds, fold-ins and README maintenance to the template.
 - Require generated skills to state a corpus-derived default output language immediately after the title, with explicit user overrides. Align the writing scaffold, fold-in review and published host instructions; translated editions use the translation language and multilingual corpora use their principal language.
 - Added a README self-introduction standard for constructed experts: first-person, domain-specific reasoning grounded in the final core, with source counts and build provenance moved to supporting sections. Applied it to new builds and fold-ins through the skill, project instructions, and published-repository editorial review.
